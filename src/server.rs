@@ -6,15 +6,26 @@
 /// This will also need to be able to gather the file logs, stdout output, and the frostbite logs and be able to pipe them over a website at any point
 /// Having the ability to gracefully shut down and start up servers is also a bonus
 pub struct VuServer {
+    /// The id of this server
     id: uuid::Uuid,
+
+    /// The prefix that is added to the server name
     prefix_override: String,
+
+    /// The password to the VU server for users
     user_password: String,
 
+    /// Finalized ModList.txt
     mod_list: String,
+
+    /// Finalized MapList.txt
     map_list: String,
+
+    /// Finalized BanList.txt
     ban_list: String,
+
+    /// Finalized Startup.txt
     startup: String
-    
 }
 
 impl VuServer {

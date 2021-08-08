@@ -13,3 +13,13 @@ fn load_banlist_test() {
 
     assert!(deploy.load_banlist_template_from_file(&String::from("sample/Admin/BanList.txt")));
 }
+
+#[test]
+fn lobby_expiration_test() {
+
+}
+
+#[test]
+fn experimental_process_test() {
+    let is_win32 = cfg!(target_os = "windows");
+}
