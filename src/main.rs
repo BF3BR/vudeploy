@@ -12,6 +12,7 @@ mod tests;
 mod lobby;
 mod server;
 mod vu;
+mod rcon;
 
 /*
 Web API

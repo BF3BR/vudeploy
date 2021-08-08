@@ -7,6 +7,9 @@ mod lobby;
 #[path = "server.rs"]
 mod server;
 
+#[path = "rcon.rs"]
+mod rcon;
+
 use std::{io::{BufRead, BufReader}, process::{Command, Stdio}};
 
 #[test]
@@ -44,6 +47,13 @@ fn experimental_process_test() {
             assert!(false);
         }
     }
+}
+
+#[test]
+fn rcon_connection_test() {
+    let rcon = rcon::Rcon::new(&"localhost:47200".to_string());
+    
+    let stream = &rcon.unwrap().tcp_stream;
 
     
 }
