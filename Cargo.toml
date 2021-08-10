@@ -14,4 +14,5 @@ uuid = { version = "0.8.2", features = ["serde", "v4"] }
 reqwest = { version = "0.11", features = ["blocking", "json"] }
 chrono = "0.4"
 directories = "3.0.2"
+futures = "0.3.16"
 packed_struct = "0.6.0"

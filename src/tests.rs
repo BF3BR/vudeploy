@@ -11,6 +11,7 @@ mod server;
 mod rcon;
 
 use std::{io::{BufRead, BufReader}, process::{Command, Stdio}};
+use futures::future::Future;
 
 #[test]
 fn load_banlist_test() {
@@ -29,23 +30,41 @@ fn experimental_process_test() {
     let is_win32 = cfg!(target_os = "windows");
 
     // C:\Users\godiwik\AppData\Local\VeniceUnleashed\client\vu.exe -server -dedicated -high60
-    let child_process_spawn = Command::new("").stdout(Stdio::piped()).spawn();
+    let child_process_spawn = Command::new("C:\\Users\\godiwik\\AppData\\Local\\VeniceUnleashed\\client\\vu.exe").arg("-server").arg("-dedicated").arg("-high60)").arg("-headless").stdout(Stdio::piped()).spawn();
     
     match child_process_spawn {
         Ok(mut child_process) => {
             let rip = child_process.stdout.as_mut().unwrap();
             let mut reader = BufReader::new(rip);
-            let mut line: String = String::new();
-            for i in 0..10 {
-                reader.read_line(&mut line);
+            
+            let _read_log = async {
+                loop {
+                    let mut line: String = String::new();
+                    let read_result = reader.read_line(&mut line);
+                    match read_result {
+                        Ok(bytes_read) => {
+                            if bytes_read == 0 {
+                                break;
+                            }
+                            //println!("line: ({}).", line);
 
-                println!("line: ({}).", line);
-            }
+                        },
+                        Err(err) => {
+                            eprintln!("could not read from stdout ({}).", err);
+                            break;
+                        }
+                    }
+                }
+            };
         },
         Err(err) => {
             eprintln!("err: ({}).", err);
             assert!(false);
         }
+    }
+
+    loop {
+        let _sig = b"Sig";
     }
 }
 
