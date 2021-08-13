@@ -11,7 +11,9 @@ mod server;
 mod rcon;
 
 use std::{io::{BufRead, BufReader}, process::{Command, Stdio}};
+use byteorder::LittleEndian;
 use futures::future::Future;
+use byteorder::ByteOrder;
 
 #[test]
 fn load_banlist_test() {
@@ -75,4 +77,35 @@ fn rcon_connection_test() {
     let stream = &rcon.unwrap().tcp_stream;
 
     
+}
+
+#[test]
+fn rcon_serialization_test() {
+    // Create a new packet header
+    let packet_header = rcon::PacketHeader::new_from(123, 456, 789);
+
+    // Serialize the data
+    let data = &packet_header.serialize();
+
+    // Deserialize from the buffer and verify results
+    assert_eq!(LittleEndian::read_u32(&data[0..=3]), packet_header.sequence());
+    assert_eq!(LittleEndian::read_u32(&data[4..=7]), packet_header.size());
+    assert_eq!(LittleEndian::read_u32(&data[8..=11]), packet_header.word_count());
+}
+
+#[test]
+fn rcon_bit_tests() {
+    let mut packet_header = rcon::PacketHeader::new();
+
+    &packet_header.set_sequence_id(123);
+    &packet_header.set_origin(rcon::SequenceOrigin::Client);
+    
+}
+
+#[test]
+fn rcon_const_tests() {
+    assert_eq!(rcon::PacketHeader::PACKET_HEADER_REQUEST_SHIFT, 30);
+    assert_eq!(rcon::PacketHeader::PACKET_HEADER_ORIGIN_SHIFT, 31);
+    assert_eq!(rcon::PacketHeader::PACKET_HEADER_SEQUENCE_ID_MASK, 0x3FFFFFFF);
+    assert_eq!(!rcon::PacketHeader::PACKET_HEADER_SEQUENCE_ID_MASK, 0xC0000000);
 }

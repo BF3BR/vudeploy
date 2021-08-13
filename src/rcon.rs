@@ -9,28 +9,23 @@ use std::env;
 use std::error::Error;
 use std::net::SocketAddr;
 use byteorder::{ByteOrder, LittleEndian};
+use std::ops::IndexMut;
 
 pub struct Rcon {
     pub tcp_stream: TcpStream,
     sequence_number: u32,
 }
-
-struct Sequence {
-    origin: SequenceOrigin,
-    direction: SequenceDirection,
-    sequence_id: u32
-}
-enum SequenceOrigin {
+pub enum SequenceOrigin {
     Server = 0,
     Client = 1
 }
 
-enum SequenceDirection {
+pub enum SequenceDirection {
     Request = 0,
     Response = 1
 }
 
-struct PacketHeader {
+pub struct PacketHeader {
     /// Bit 31
     /// 
     /// - 0 The command in this command/response pair originated on the server
@@ -49,7 +44,23 @@ struct PacketHeader {
 }
 
 impl PacketHeader {
-    pub fn new(reader: &std::io::BufReader<u8>) -> PacketHeader {
+    /// Packet header size
+    ///
+    /// sizeof(sequence) + sizeof(size) + sizeof(word_count)
+    const PACKET_HEADER_SIZE: usize = 12;
+
+    /// (default: 31)
+    pub const PACKET_HEADER_ORIGIN_SHIFT: u32 = 31;
+
+    /// Offset for packet header request/response bit shift
+    ///
+    /// (default: 30)
+    pub const PACKET_HEADER_REQUEST_SHIFT: u32 = 30;
+    
+    /// (default: 0x3FFFFFFF)
+    pub const PACKET_HEADER_SEQUENCE_ID_MASK: u32 = !(3 << PacketHeader::PACKET_HEADER_REQUEST_SHIFT);
+
+    pub fn new_from_reader(reader: &std::io::BufReader<u8>) -> PacketHeader {
         let mut cursor = std::io::Cursor::new(reader.buffer());
         let sequence_ = cursor.get_u32_le();
         let size_ = cursor.get_u32_le();
@@ -62,14 +73,53 @@ impl PacketHeader {
         };
     }
 
+    pub fn new() -> PacketHeader {
+        return PacketHeader {
+            sequence: 0,
+            size: 0,
+            word_count: 0
+        }
+    }
+
+    pub fn new_from(_sequence: u32, _size: u32, _word_count: u32) -> PacketHeader {
+        return PacketHeader {
+            sequence: _sequence,
+            size: _size,
+            word_count: _word_count
+        }
+    }
+
     pub fn serialize(&self) -> Vec<u8> {
-        let mut data: Vec<u8> = Vec::new();
+        let mut data: Vec<u8> = vec![0u8; PacketHeader::PACKET_HEADER_SIZE];
+
+        //let mut cursor= Cursor::new(&data);
+
+        LittleEndian::write_u32(&mut data[0..=3], self.sequence);
+        LittleEndian::write_u32(&mut data[4..=7], self.size);
+        LittleEndian::write_u32(&mut data[8..=11], self.word_count);
 
         return data;
     }
 
+    pub fn set_direction(&mut self, direction: SequenceDirection) {
+        // set bit
+        // number |= 1UL << n;
+
+        // clear bit
+        // number &= ~(1UL << n);
+
+        match direction {
+            SequenceDirection::Request => {
+                self.sequence = self.sequence | (1 << PacketHeader::PACKET_HEADER_REQUEST_SHIFT);
+            },
+            SequenceDirection::Response => {
+                self.sequence = self.sequence & !(1 << PacketHeader::PACKET_HEADER_REQUEST_SHIFT);
+            }
+        }
+    }
+
     pub fn is_request(&self) -> bool {
-        let masked_request_response = self.sequence & 0x40000000;
+        let masked_request_response = self.sequence & (1 << PacketHeader::PACKET_HEADER_REQUEST_SHIFT);
         if masked_request_response == 0 {
             return true;
         }
@@ -82,7 +132,7 @@ impl PacketHeader {
 
     pub fn origin(&self) -> SequenceOrigin {
         // We only want the 31'st bit
-        let masked_origin = self.sequence & 0x80000000;
+        let masked_origin = self.sequence & (1 << PacketHeader::PACKET_HEADER_ORIGIN_SHIFT);
 
         // If it's 0, then server, 1 is client
         if masked_origin == 0 {
@@ -91,16 +141,70 @@ impl PacketHeader {
         return SequenceOrigin::Client;
     }
 
+    pub fn set_origin(&mut self, origin: SequenceOrigin) {
+        // Get the sequence without the origin bit
+        let masked_origin = self.sequence & !(1 << PacketHeader::PACKET_HEADER_ORIGIN_SHIFT);
+
+        match origin {
+            SequenceOrigin::Client => {
+                // Update teh sequence with a set bit
+                self.sequence = masked_origin | (1 << PacketHeader::PACKET_HEADER_ORIGIN_SHIFT);
+            },
+            SequenceOrigin::Server => {
+                // Update the sequence with a cleared bit
+                self.sequence = masked_origin;
+            }
+        }
+    }
+
     pub fn word_count(&self) -> u32 {
         return self.word_count;
+    }
+
+    pub fn set_word_count(&mut self, word_count: u32) {
+        self.word_count = word_count;
     }
 
     pub fn size(&self) -> u32 {
         return self.size;
     }
+
+    pub fn set_size(&mut self, size: u32) {
+        self.size = size;
+    }
+
+    /// Sets the sequence id
+    ///
+    /// `NOTE: If the sequence id is over the maximum of 0x3FFFFFFF then it resets to 0`
+    ///
+    pub fn set_sequence_id(&mut self, mut sequence_id: u32) {
+        // Bounds check our sequence id
+        if sequence_id > PacketHeader::PACKET_HEADER_SEQUENCE_ID_MASK {
+            sequence_id = 0;
+        }
+
+        // Clear the sequence number, preserving the upper 2 bits
+        let cleared_sequence = self.sequence & !PacketHeader::PACKET_HEADER_SEQUENCE_ID_MASK;
+
+        // Update the sequence with the new sequence id
+        self.sequence = cleared_sequence | sequence_id;
+    }
+
+    /// Returns the combined sequence
+    ///
+    /// This will contain the sequence id, the origin, and the request/response combined
+    pub fn sequence(&self) -> u32 {
+        return self.sequence
+    }
+
+    /// Returns the sequence id
+    ///
+    pub fn sequence_id(&self) -> u32 {
+        return self.sequence & PacketHeader::PACKET_HEADER_SEQUENCE_ID_MASK;
+    }
 }
 
-struct RemotePacket {
+pub struct RemotePacket {
     header: PacketHeader,
     words: Vec<String>,
 }
