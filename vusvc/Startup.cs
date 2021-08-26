@@ -41,11 +41,14 @@ namespace vusvc
             // Add LobbyManager singleton
             services.AddSingleton<ILobbyManager, LobbyManager>();
 
+            // Add ServerManager singleton
+            services.AddSingleton<IServerManager, ServerManager>();
+
             services.AddRazorPages();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
-        public void Configure(IApplicationBuilder app, IWebHostEnvironment env, IHostApplicationLifetime lifetime, IPlayerManager playerManager, ILobbyManager lobbyManager)
+        public void Configure(IApplicationBuilder app, IWebHostEnvironment env, IHostApplicationLifetime lifetime, IPlayerManager playerManager, ILobbyManager lobbyManager, IServerManager serverManager)
         {
             if (env.IsDevelopment())
             {
@@ -76,6 +79,7 @@ namespace vusvc
             lifetime.ApplicationStopping.Register(() =>
             {
                 playerManager.Save("./players.json");
+                serverManager.KillAllServers();
             });
         }
     }

@@ -44,12 +44,19 @@ namespace vusvc.Data
         /// <summary>
         /// Backend id for this server instance
         /// </summary>
-        public Guid Id { get; set; }
+        public Guid Id { get; set; } = Guid.Empty;
+
+        /// <summary>
+        /// Zeus id that is parsed from the output log
+        /// 
+        /// Do not rely on this for any actual information
+        /// </summary>
+        public Guid ZeusId { get; set; } = Guid.Empty;
 
         /// <summary>
         /// Type of server
         /// </summary>
-        public ServerInstanceType ServerType { get; set; }
+        public ServerInstanceType ServerType { get; set; } = ServerInstanceType.Undefined;
 
         /// <summary>
         /// Display name of server
@@ -85,6 +92,9 @@ namespace vusvc.Data
         /// Players that are in this server
         /// WARN: This is not expected to be reliable
         /// </summary>
-        public List<Guid> PlayerIds { get; set; }
+        public List<Guid> PlayerIds { get; set; } = new List<Guid>();
+
+        public string ErrorLog { get; set; }
+        public string OutputLog { get; set; }
     }
 }

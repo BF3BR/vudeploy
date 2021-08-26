@@ -3,6 +3,9 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Web;
+using vusvc.Data;
+using vusvc.Managers;
 
 // For more information on enabling Web API for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
 
@@ -12,6 +15,13 @@ namespace vusvc.Controllers
     [ApiController]
     public class ServerController : ControllerBase
     {
+        private readonly IServerManager m_ServerManager;
+
+        public ServerController(IServerManager p_ServerManager)
+        {
+            m_ServerManager = p_ServerManager;
+        }
+
         // GET: api/<ServerController>
         [HttpGet]
         public IEnumerable<string> Get()
@@ -20,10 +30,47 @@ namespace vusvc.Controllers
         }
 
         // GET api/<ServerController>/5
-        [HttpGet("{id}")]
-        public string Get(int id)
+        [HttpGet("{p_ServerId}")]
+        public ActionResult<Server> Get(Guid p_ServerId, string p_Key)
         {
-            return "value";
+            if (p_Key != Program.c_AdminKey)
+                return NotFound();
+
+            var s_Server = m_ServerManager.GetServerById(p_ServerId);
+            if (s_Server is null)
+                return BadRequest();
+
+            return s_Server;
+        }
+
+        [HttpGet("output/{p_ServerId}")]
+        public ActionResult<string> GetOutput(Guid p_ServerId)
+        {
+            var s_Server = m_ServerManager.GetServerById(p_ServerId);
+            if (s_Server is null)
+                return BadRequest();
+
+            return HttpUtility.HtmlEncode(s_Server.OutputLog);
+        }
+
+        [HttpGet("error/{p_ServerId}")]
+        public ActionResult<string> GetError(Guid p_ServerId)
+        {
+            var s_Server = m_ServerManager.GetServerById(p_ServerId);
+            if (s_Server is null)
+                return BadRequest();
+
+            return HttpUtility.HtmlEncode(s_Server.ErrorLog);
+
+        }
+
+        [HttpGet("SpawnServer")]
+        public ActionResult<Server> SpawnServer()
+        {
+            if (!(m_ServerManager as ServerManager).SpawnServer(out Server? s_Server))
+                return BadRequest();
+
+            return s_Server;
         }
 
         // POST api/<ServerController>
