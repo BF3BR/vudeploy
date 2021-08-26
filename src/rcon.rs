@@ -1,19 +1,18 @@
-use std::io::Cursor;
-use std::net::TcpStream;
-use futures::StreamExt;
-use hyper::body::Buf;
-use tokio::io;
-use tokio_util::codec::{BytesCodec, FramedRead, FramedWrite};
+//use hyper::body::Buf;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
-use std::env;
-use std::error::Error;
-use std::net::SocketAddr;
+use std::collections::VecDeque;
+use std::net::{SocketAddr, ToSocketAddrs};
+use std::ops::Deref;
 use byteorder::{ByteOrder, LittleEndian};
-use std::ops::IndexMut;
+//use tokio::io::AsyncReadExt;
 
 pub struct Rcon {
-    pub tcp_stream: TcpStream,
+    connection_address: String,
     sequence_number: u32,
+    outgoing_packets: VecDeque<Vec<u8>>,
+    incoming_packets: VecDeque<Vec<u8>>,
+    stream: std::sync::Arc<tokio::net::TcpStream>
 }
 pub enum SequenceOrigin {
     Server = 0,
@@ -60,17 +59,18 @@ impl PacketHeader {
     /// (default: 0x3FFFFFFF)
     pub const PACKET_HEADER_SEQUENCE_ID_MASK: u32 = !(3 << PacketHeader::PACKET_HEADER_REQUEST_SHIFT);
 
-    pub fn new_from_reader(reader: &std::io::BufReader<u8>) -> PacketHeader {
-        let mut cursor = std::io::Cursor::new(reader.buffer());
-        let sequence_ = cursor.get_u32_le();
-        let size_ = cursor.get_u32_le();
-        let word_count_ = cursor.get_u32_le();
+    pub fn new_from_reader(reader: &tokio::io::BufReader<u8>) -> PacketHeader {
+        let mut packet_header_data = vec![0u8; PacketHeader::PACKET_HEADER_SIZE];
 
-        return PacketHeader {
+        //let reader_future = reader.read(&mut packet_header_data);
+
+        return PacketHeader::new();
+
+        /*return PacketHeader {
             sequence: sequence_,
             size: size_,
             word_count: word_count_
-        };
+        };*/
     }
 
     pub fn new() -> PacketHeader {
@@ -221,6 +221,17 @@ impl RemotePacket {
         }
     }
 
+    pub fn new_from_reader(mut reader: &tokio::io::BufReader<u8>) -> RemotePacket {
+        /*let packet_header = PacketHeader::new_from_reader(reader);
+        let words: Vec<PacketWord> = Vec::new();
+
+        for word_index in 0..(&packet_header).word_count() {
+            let word = PacketWord::new_from_reader(reader);
+        }*/
+
+        return RemotePacket::new();
+    }
+
     fn serialize_words(&mut self) -> Vec<u8> {
         let mut string_data: Vec<u8> = Vec::new();
 
@@ -278,24 +289,74 @@ struct PacketWord {
     content: String
 }
 
-impl Rcon {
-    pub fn new(connection_address: &String) -> Option<Rcon> {
-        let connection_stream_result = TcpStream::connect(connection_address);
-        match connection_stream_result {
-            Ok(connection_stream) => {
-                return Some(Rcon {
-                    tcp_stream: connection_stream,
-                    sequence_number: 0
-                });
-            },
-            Err(err) => {
-                eprintln!("err: could not connect ({}).", err);
-                return None;
-            }
+impl PacketWord {
+    pub fn new() -> PacketWord {
+        return PacketWord {
+            size: 0,
+            content: String::new()
         }
     }
 
-    pub fn read() {
+    pub fn new_from_reader(mut reader: &std::io::BufReader<u8>) -> PacketWord {
+        let mut cursor = std::io::Cursor::new(reader.buffer());
+        
+        // TODO: Implement
+        return PacketWord::new();
+    }
+}
 
+impl Rcon {
+    pub fn new(_connection_address: &String) -> Option<Rcon> {
+        if _connection_address.is_empty() {
+            eprintln!("err: invalid connection address ({}).", _connection_address);
+            return None;
+        }
+
+        // Connect to our target and wait for the result
+        let connect_task = tokio::net::TcpStream::connect(_connection_address);
+        let connect_result = futures::executor::block_on(connect_task);
+        
+        match connect_result {
+
+            // We successfully connected
+            Ok(tcp_stream) => {
+
+                // Return our newly created object
+                return Some(Rcon {
+                    connection_address: _connection_address.clone(),
+                    sequence_number: 0,
+                    outgoing_packets: VecDeque::new(),
+                    incoming_packets: VecDeque::new(),
+                    stream: std::sync::Arc::new(tcp_stream)
+                });
+            },
+            // Otherwise print errors
+            Err(error) => {
+                eprintln!("err: could not connect ({}).", error);
+            }
+        }
+        
+        return None;
+    }
+
+    pub async fn do_pump(&mut self) {
+        let stream = self.stream.clone();
+        let (mut read_half, mut _write_half) = stream.deref();
+
+        tokio::spawn( async {
+
+            loop {
+                let mut packet_header_data = vec![0u8; PacketHeader::PACKET_HEADER_SIZE];
+                let read_result = read_half.read(&mut packet_header_data).await;
+                
+            }
+            
+
+
+        });
+
+        /*tokio::spawn(async {
+
+        })*/
     }
 }
