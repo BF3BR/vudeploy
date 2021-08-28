@@ -31,13 +31,13 @@ namespace vusvc.Managers
             m_PlayerManager = p_PlayerManager;
         }
 
-        public bool AddLobby(Guid p_CreatorZeusId, ushort p_MaxPlayers, string p_Name, out PlayerLobby? p_PlayerLobby)
+        public bool AddLobby(Guid p_PlayerId, ushort p_MaxPlayers, string p_Name, out PlayerLobby? p_PlayerLobby)
         {
             // Set our output to a default value
             p_PlayerLobby = null;
 
             // Get the player
-            var s_CreatorPlayer = m_PlayerManager.GetPlayerByZeusId(p_CreatorZeusId);
+            var s_CreatorPlayer = m_PlayerManager.GetPlayerById(p_PlayerId);
 
             // Check to see if the player exists already
             if (s_CreatorPlayer is null)
@@ -78,6 +78,8 @@ namespace vusvc.Managers
             };
 
             p_PlayerLobby = s_Lobby;
+
+            m_Lobbies.Add(s_Lobby);
 
             return true;
         }

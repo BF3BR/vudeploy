@@ -23,18 +23,99 @@ namespace vusvc.Controllers
     /// </summary>
     [Route("api/[controller]")]
     [ApiController]
-    public class LobbyController : ControllerBase
+    public class LobbyController : Controller
     {
-        public struct CreateLobbyApi
+        public struct CreateLobbyRequest
         {
-            public Guid ZeusId { get; set; }
+            /// <summary>
+            /// Player Id
+            /// </summary>
+            public Guid Id { get; set; }
+
+            /// <summary>
+            /// Name of the lobby to create
+            /// 
+            /// If blank then it will automamtically generate one
+            /// </summary>
             public string Name { get; set; }
+
+            /// <summary>
+            /// Maximum lobby size
+            /// </summary>
             public ushort MaxPlayers { get; set; }
         }
 
+        public struct CreateLobbyResponse
+        {
+            /// <summary>
+            /// Lobby id
+            /// </summary>
+            public Guid Id { get; set; }
+
+            /// <summary>
+            /// Lobby code
+            /// </summary>
+            public string Code { get; set; }
+        }
+
+        public struct DestroyLobbyRequest
+        {
+            public Guid PlayerId { get; set; }
+            public Guid LobbyId { get; set; }
+        }
+
+        public struct JoinLobbyRequest
+        {
+            public Guid PlayerId { get; set; }
+            public Guid LobbyId { get; set; }
+            public string Code { get; set; }
+        }
+
+        public struct LeaveLobbyRequest
+        {
+            public Guid PlayerId { get; set; }
+
+            public Guid LobbyId { get; set; }
+        }
+
+        public struct LobbyStatusRequest
+        {
+            /// <summary>
+            /// Lobby id
+            /// </summary>
+            public Guid LobbyId { get; set; }
+
+            /// <summary>
+            /// Lobby code
+            /// </summary>
+            public string Code { get; set; }
+        }
+
+        public struct LobbyStatusResponse
+        {
+            /// <summary>
+            /// The lobby id
+            /// </summary>
+            public Guid LobbyId { get; set; }
+
+            /// <summary>
+            /// Maximum player count for this lobby
+            /// </summary>
+            public ushort MaxPlayerCount { get; set; }
+
+            /// <summary>
+            /// Names of other players in the lobby
+            /// </summary>
+            public string[] PlayerNames { get; set; }
+        }
+
+        // List of lobbies
         private List<PlayerLobby> m_Lobbies;
 
+        // Player manager
         private IPlayerManager m_PlayerManager;
+
+        // Lobby managers
         private ILobbyManager m_LobbyManager;
 
         public LobbyController(IPlayerManager p_PlayerManager, ILobbyManager p_LobbyManager)
@@ -44,41 +125,115 @@ namespace vusvc.Controllers
             m_LobbyManager = p_LobbyManager;
         }        
 
-        // GET: api/<LobbyController>
-        [HttpGet]
-        public ActionResult<PlayerLobby[]> Get(string Key)
+        public IActionResult Index()
         {
-            return m_Lobbies.ToArray();
+            ViewData["Lobbies"] = m_Lobbies.ToArray();
+
+            return View();
         }
 
-        [HttpPost("CreateLobby")]
+        [HttpPost("Create")]
         [Consumes(MediaTypeNames.Application.Json)]
         
-        public ActionResult<PlayerLobby> CreateLobby(CreateLobbyApi p_Request)
+        public ActionResult<CreateLobbyResponse> CreateLobby(CreateLobbyRequest p_Request)
         {
             // Validate that we have some kind of name
             if (string.IsNullOrWhiteSpace(p_Request.Name) || string.IsNullOrEmpty(p_Request.Name))
                 return BadRequest();
 
             // Check to see if we have a zeus id
-            if (p_Request.ZeusId == Guid.Empty)
+            if (p_Request.Id == Guid.Empty)
+                return BadRequest();
+
+            // Get the player
+            var s_Player = m_PlayerManager.GetPlayerById(p_Request.Id);
+            if (s_Player is null)
                 return BadRequest();
 
             // Sanitize the name before we store it
             var s_SanitizedName = p_Request.Name.Sanitize();
 
-            // Add the player to our player manager
-            /*if (!m_PlayerManager.AddPlayer(p_Request.ZeusId, s_SanitizedName, out Player? s_Player))
+            // Create a new lobby
+            if (!m_LobbyManager.AddLobby(s_Player.Id, p_Request.MaxPlayers, s_SanitizedName, out PlayerLobby? s_Lobby))
                 return BadRequest();
 
-            // Get the player that was just created
-            if (s_Player is null)
-                return Problem(statusCode: 500);*/
+            return new CreateLobbyResponse
+            {
+                Id = s_Lobby.Id,
+                Code = s_Lobby.Code
+            };
+        }
 
-            if (!m_LobbyManager.AddLobby(p_Request.ZeusId, p_Request.MaxPlayers, s_SanitizedName, out PlayerLobby? s_Lobby))
+        [HttpPost("Remove")]
+        [Consumes(MediaTypeNames.Application.Json)]
+        public IActionResult RemoveLobby(DestroyLobbyRequest p_Request)
+        {
+            // Check to see if the lobby exists
+            var s_Lobby = m_LobbyManager.GetLobbyById(p_Request.LobbyId);
+            if (s_Lobby is null)
                 return BadRequest();
 
-            return s_Lobby;
+            // Check to make sure that the requesting player is an admin and can destroy the lobby
+            if (p_Request.PlayerId != s_Lobby.AdminPlayerId)
+                return BadRequest();
+
+            if (!m_LobbyManager.RemoveLobby(p_Request.LobbyId))
+                return BadRequest();
+
+            return Ok();
+        }
+
+        [HttpPost("Join")]
+        [Consumes(MediaTypeNames.Application.Json)]
+        public IActionResult JoinLobby(JoinLobbyRequest p_Request)
+        {
+            // Length check the code
+            if (p_Request.Code.Length > 4)
+                return BadRequest();
+
+            if (!m_LobbyManager.JoinLobby(p_Request.LobbyId, p_Request.PlayerId, p_Request.Code))
+                return BadRequest();
+
+            return Ok();
+        }
+
+        [HttpPost("Leave")]
+        [Consumes(MediaTypeNames.Application.Json)]
+        public IActionResult LeaveLobby(LeaveLobbyRequest p_Request)
+        {
+            if (!m_LobbyManager.LeaveLobby(p_Request.LobbyId, p_Request.PlayerId))
+                return BadRequest();
+
+            return Ok();
+        }
+
+        [HttpGet]
+        [Consumes(MediaTypeNames.Application.Json)]
+        public ActionResult<LobbyStatusResponse> GetStatus(LobbyStatusRequest p_Request)
+        {
+            // Find if the lobby exists
+            var s_Lobby = m_LobbyManager.GetLobbyById(p_Request.LobbyId);
+            if (s_Lobby is null)
+                return BadRequest();
+
+            var s_LobbyCode = p_Request.Code;
+            // Check the lobby code code
+            if (s_LobbyCode.Length > 4)
+                return BadRequest();
+
+            // Check the lobby code against the lobby
+            if (s_Lobby.Code != s_LobbyCode)
+                return BadRequest();
+
+            // We don't want to leak player id's, so we return player names instead
+            var s_PlayerNames = s_Lobby.PlayerIds.Select(p_PlayerId => m_PlayerManager.GetPlayerById(p_PlayerId)?.Name).ToArray();
+
+            return new LobbyStatusResponse
+            {
+                LobbyId = s_Lobby.Id,
+                MaxPlayerCount = s_Lobby.MaxPlayers,
+                PlayerNames = s_PlayerNames
+            };
         }
     }
 }

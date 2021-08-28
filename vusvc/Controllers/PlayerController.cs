@@ -40,8 +40,8 @@ namespace vusvc.Controllers
             public Guid Id { get; set; }
         }
 
-        // GET api/<PlayerController>/5
-        [HttpGet("{id}")]
+        // GET api/<PlayerController>/p_PlayerId
+        [HttpGet("{p_PlayerId}")]
         public ActionResult<SafePlayerInfo> Get(Guid p_PlayerId)
         {
             var s_Player = m_PlayerManager.GetPlayerById(p_PlayerId);

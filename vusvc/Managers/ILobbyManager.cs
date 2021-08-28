@@ -8,7 +8,7 @@ namespace vusvc.Managers
 {
     public interface ILobbyManager
     {
-        bool AddLobby(Guid p_CreatorZeusId, ushort p_MaxPlayers, string p_Name, out PlayerLobby p_PlayerLobby);
+        bool AddLobby(Guid p_PlayerId, ushort p_MaxPlayers, string p_Name, out PlayerLobby p_PlayerLobby);
         bool RemoveLobby(Guid p_LobbyId);
         bool UpdateLobby(Guid p_LobbyId);
 
