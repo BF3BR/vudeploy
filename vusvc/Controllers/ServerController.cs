@@ -13,8 +13,12 @@ namespace vusvc.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    public class ServerController : ControllerBase
+    public class ServerController : Controller
     {
+        public struct ServerView
+        {
+            
+        }
         private readonly IServerManager m_ServerManager;
 
         public ServerController(IServerManager p_ServerManager)
@@ -24,9 +28,11 @@ namespace vusvc.Controllers
 
         // GET: api/<ServerController>
         [HttpGet]
-        public IEnumerable<string> Get()
+        public IActionResult Index()
         {
-            return new string[] { "value1", "value2" };
+            ViewData["Servers"] = (m_ServerManager as ServerManager).Servers.ToArray();
+
+            return View();
         }
 
         // GET api/<ServerController>/5

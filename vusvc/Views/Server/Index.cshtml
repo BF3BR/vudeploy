@@ -1,0 +1,23 @@
+﻿
+@*
+    For more information on enabling MVC for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
+*@
+@{
+    Layout = "_Layout";
+}
+
+<h1>Server Page</h1>
+<p>All currently running servers will be displayed below</p>
+
+<h2>Actively Running Servers:</h2>
+<br />
+<ul>
+    @{
+        var s_Servers = (vusvc.Data.Server[])ViewData["Servers"];
+        for (int i = 0; i < s_Servers.Length; i++)
+        {
+            var l_Server = s_Servers[i];
+            <li>@l_Server.Id</li>
+        }
+    }
+</ul>

@@ -18,6 +18,8 @@ namespace vusvc.Managers
 
         private List<Win32Server> m_Servers;
 
+        public IEnumerable<Server> Servers => m_Servers.Select(p_Win32Server => p_Win32Server._Server);
+
         public int MaxServers { get; set; }
 
         private const int c_DefaultServerCount = 2;
