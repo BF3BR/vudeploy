@@ -11,7 +11,7 @@ namespace vusvc
 {
     public class Program
     {
-        public static string c_AdminKey = "a8709c27-c552-4a25-9a90-f52ee1eeee4e";
+        //public static string c_AdminKey = "a8709c27-c552-4a25-9a90-f52ee1eeee4e";
 
         public static void Main(string[] args)
         {

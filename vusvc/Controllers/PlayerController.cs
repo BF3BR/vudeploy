@@ -25,9 +25,6 @@ namespace vusvc.Controllers
         [HttpGet]
         public ActionResult<Player[]> Get(string Key)
         {
-            if (Key != Program.c_AdminKey)
-                return BadRequest();
-
             return m_PlayerManager.GetAllPlayers().ToArray();
         }
 
@@ -56,24 +53,6 @@ namespace vusvc.Controllers
                 Id = s_Player.Id,
                 Name = s_Player.Name,
             };
-        }
-
-        // POST api/<PlayerController>
-        [HttpPost]
-        public void Post([FromBody] string value)
-        {
-        }
-
-        // PUT api/<PlayerController>/5
-        [HttpPut("{id}")]
-        public void Put(int id, [FromBody] string value)
-        {
-        }
-
-        // DELETE api/<PlayerController>/5
-        [HttpDelete("{id}")]
-        public void Delete(int id)
-        {
         }
 
         public struct CreatePlayerRequest

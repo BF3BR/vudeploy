@@ -48,35 +48,7 @@ namespace vusvc.Controllers
         [HttpGet]
         public ActionResult<PlayerLobby[]> Get(string Key)
         {
-            if (Key != Program.c_AdminKey)
-                return BadRequest();
-
             return m_Lobbies.ToArray();
-        }
-
-        // GET api/<LobbyController>/5
-        [HttpGet("{id}")]
-        public string Get(int id)
-        {
-            return "value";
-        }
-
-        // POST api/<LobbyController>
-        [HttpPost]
-        public void Post([FromBody] string value)
-        {
-        }
-
-        // PUT api/<LobbyController>/5
-        [HttpPut("{id}")]
-        public void Put(int id, [FromBody] string value)
-        {
-        }
-
-        // DELETE api/<LobbyController>/5
-        [HttpDelete("{id}")]
-        public void Delete(int id)
-        {
         }
 
         [HttpPost("CreateLobby")]

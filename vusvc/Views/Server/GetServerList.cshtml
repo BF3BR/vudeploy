@@ -19,6 +19,7 @@
         <th>Players</th>
         <th>Error</th>
         <th>Output</th>
+        <th>Kill</th>
     </tr>
 
     @{
@@ -31,8 +32,12 @@
                 <td>@l_Server.Id</td>
                 <td>@l_Server.Name</td>
                 <td>@l_Server.PlayerIds.Count</td>
-                <td>Errors</td>
-                <td>Output</td>
+                <td><a href="Server/Error/@l_Server.Id">Errors</a></td>
+                <td><a href="Server/Output/@l_Server.Id">Output</a></td>
+                <td>
+                    @Html.ActionLink("Kill", "Remove", "Server", new vusvc.Controllers.ServerController.RemoveServerRequest { ServerId = l_Server.Id, Terminate = true })
+                </td>
+
             </tr>
         }
     }
