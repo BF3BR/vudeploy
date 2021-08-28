@@ -1,5 +1,6 @@
 ﻿using System;
 using vusvc.Data;
+using static vusvc.Data.Server;
 
 namespace vusvc.Managers
 {
@@ -14,6 +15,20 @@ namespace vusvc.Managers
         /// <param name="p_ServerId">Server id</param>
         /// <returns>Server, or null if not found or error</returns>
         Server? GetServerById(Guid p_ServerId);
+
+        /// <summary>
+        /// BUG: This is probably going to change in the future
+        /// 
+        /// Adds a new server
+        /// </summary>
+        /// <param name="p_Server">Created server object on success</param>
+        /// <param name="p_Unlisted">Should this server be unlisted</param>
+        /// <param name="p_BindIp">Binding IP address (ex: "0.0.0.0")</param>
+        /// <param name="p_TemplateName">Template to copy from</param>
+        /// <param name="p_Frequency">Frequency to spawn</param>
+        /// <param name="p_ServerType">Server type</param>
+        /// <returns>True on success, false otherwise</returns>
+        bool AddServer(out Server? p_Server, bool p_Unlisted, string p_BindIp, string p_TemplateName, ServerInstanceFrequency p_Frequency, ServerInstanceType p_ServerType);
 
         /// <summary>
         /// Removes a server from the server manager
@@ -32,8 +47,9 @@ namespace vusvc.Managers
         /// Terminates a servers process
         /// </summary>
         /// <param name="p_ServerId">Server id</param>
+        /// <param name="p_DeleteInstanceDirectory">Should we delete the instance directory and contents</param>
         /// <returns>True if success, false otherwise</returns>
-        bool TerminateServer(Guid p_ServerId);
+        bool TerminateServer(Guid p_ServerId, bool p_DeleteInstanceDirectory);
 
         /// <summary>
         /// Terminates all running servers

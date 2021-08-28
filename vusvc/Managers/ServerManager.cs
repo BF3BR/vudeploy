@@ -102,8 +102,14 @@ namespace vusvc.Managers
         // Default server port
         private const ushort c_DefaultServerPort = 25200;
 
+        // Default rcon port
+        private const ushort c_DefaultRconPort = 47200;
+
+        // Default monotoried harmony port
+        private const ushort c_DefaultMonitoriedHarmonyPort = 7948;
+
         // Default server count
-        private const ushort c_DefaultServerCount = 2;
+        private const ushort c_DefaultServerCount = 4;
 
         // HACK: string to look for to pull the zeus id from server output
         private const string c_ZeusMagic = "Successfully authenticated server with Zeus (Server GUID: ";
@@ -111,11 +117,23 @@ namespace vusvc.Managers
         // Localhost bind address
         private const string c_LocalhostBindIp = "0.0.0.0";
 
-        public ServerManager(ushort p_GamePortStart = c_DefaultServerPort, ushort p_MaxServerCount = c_DefaultServerCount, string p_GameFilesDir = "", string p_VuFilesDir = "", string p_InstancesDirectory = "")
+        public ServerManager(ushort p_GamePortStart = c_DefaultServerPort, ushort p_RconPortStart = c_DefaultRconPort, ushort p_MHarmonyPortStart = c_DefaultMonitoriedHarmonyPort,  ushort p_MaxServerCount = c_DefaultServerCount, string p_GameFilesDir = "", string p_VuFilesDir = "", string p_InstancesDirectory = "")
         {
-            m_Servers = new List<Win32Server>();
-
+            // NOTE: THIS NEEDS TO BE DONE FIRST
             MaxServers = p_MaxServerCount;
+
+            // Create a new list for our server extensions
+            m_Servers = new List<Win32Server>();            
+
+            // Set rcon ports
+            RconPortStart = p_RconPortStart;
+            RconPortEnd = (ushort)(RconPortStart + MaxServers);
+
+            // Set mharmony ports
+            MHarmonyPortStart = p_MHarmonyPortStart;
+            MHarmonyPortEnd = (ushort)(MHarmonyPortStart + MaxServers);
+
+            // Set game ports
             GamePortStart = p_GamePortStart;
             GamePortEnd = (ushort)(GamePortStart + MaxServers);
 
@@ -126,11 +144,11 @@ namespace vusvc.Managers
 
             // Get and check the vu executable directory
             VUExecutableDirectory = string.IsNullOrWhiteSpace(p_VuFilesDir) ? GetVeniceUnleashedExecutablePath() : p_VuFilesDir;
-            if (!Directory.Exists(VUExecutableDirectory))
-                Console.Write($"err: VU FILES DIRECTORY ({VUExecutableDirectory}) DOES NOT EXIST! SERVERS MAY NOT LAUNCH CORRECTLY.");
+            if (!File.Exists(VUExecutableDirectory))
+                Console.Write($"err: VU EXECUTABLE DIRECTORY ({VUExecutableDirectory}) DOES NOT EXIST! SERVERS MAY NOT LAUNCH CORRECTLY.");
 
             // Get and check the instances directory
-            InstancesDirectory = string.IsNullOrWhiteSpace(p_InstancesDirectory) ? "./Instances" : p_InstancesDirectory;
+            InstancesDirectory = string.IsNullOrWhiteSpace(p_InstancesDirectory) ? "Instances" : p_InstancesDirectory;
             if (!Directory.Exists(InstancesDirectory))
                 Console.Write($"err: INSTANCES DIRECTORY ({InstancesDirectory}) DOES NOT EXIST! SERVERS MAY NOT LAUNCH CORRECTLY.");
         }
@@ -340,7 +358,7 @@ namespace vusvc.Managers
             try
             {
                 if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-                    return Registry.GetValue(@"HKEY_LOCAL_MACHINE\SOFTWARE\WOW6432Node\EA Games\Battlefield 3", null, null) as string ?? string.Empty;
+                    return Registry.GetValue(@"HKEY_LOCAL_MACHINE\SOFTWARE\WOW6432Node\EA Games\Battlefield 3", "Install Dir", null) as string ?? string.Empty;
             }
             catch (Exception s_Exception)
             {
@@ -362,12 +380,22 @@ namespace vusvc.Managers
                 if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
                 {
                     var s_LaunchArg = Registry.GetValue(@"HKEY_CLASSES_ROOT\vu\Shell\Open\Command", null, null) as string ?? string.Empty;
-                    var s_LaunchArgParts = Regex.Matches(s_LaunchArg, @"[\""].+?[\""]|[^ ]+")
-                                                        .Cast<System.Text.RegularExpressions.Match>()
-                                                        .Select(m => m.Value)
-                                                        .ToList();
+                    var s_StartIndex = s_LaunchArg.IndexOf('"');
+                    if (s_StartIndex == -1)
+                        s_StartIndex = 0;
+                    else
+                        s_StartIndex++;
 
-                    return s_LaunchArgParts.FirstOrDefault();
+                    var s_EndIndex = s_LaunchArg.IndexOf('"', s_StartIndex + 1);
+                    if (s_EndIndex == -1)
+                        s_EndIndex = s_LaunchArg.Length;
+
+                    var s_PathLen = s_EndIndex - s_StartIndex;
+
+                    var s_LaunchPath = s_LaunchArg.Substring(s_StartIndex, s_PathLen).Replace(".exe", ".com");
+
+
+                    return s_LaunchPath;
                 }
             }
             catch (Exception s_Exception)
@@ -397,7 +425,7 @@ namespace vusvc.Managers
                 return true;
             }
 
-            return true;
+            return false;
         }
 
         public bool AddServer(out Server? p_Server, bool p_Unlisted = true, string p_BindIp = c_LocalhostBindIp, string p_TemplateName = "", Server.ServerInstanceFrequency p_Frequency = Server.ServerInstanceFrequency.Frequency30, Server.ServerInstanceType p_ServerType = Server.ServerInstanceType.Undefined)
@@ -444,7 +472,7 @@ namespace vusvc.Managers
             var s_ListenAddress = $"{p_BindIp}:{s_GamePort}";
 
             // These are default launch arguments for all servers
-            var s_LaunchArguments = "-server -dedicated -headless -highResTerrain -skipChecksum -noUpdate";
+            var s_LaunchArguments = "-server -dedicated -headless -highResTerrain -skipChecksum -noUpdate -updateBranch dev";
             
             // If the server is unlisted add that flag
             if (p_Unlisted)
@@ -462,9 +490,12 @@ namespace vusvc.Managers
             }
 
             // TODO: Automatically create the instance
-            var s_InstanceDirectory = $"{InstancesDirectory}/{s_ServerIdString}";
+            var s_InstanceDirectory = Path.GetFullPath($"{InstancesDirectory}/{s_ServerIdString}");
             if (!Directory.Exists(s_InstanceDirectory))
                 Directory.CreateDirectory(s_InstanceDirectory);
+
+            // Add our instance path
+            s_LaunchArguments += $" -serverInstancePath {s_InstanceDirectory}";
 
             // Check to see if there was a template passed in, we will do a 1:1 copy of the supplied template
             if (!string.IsNullOrWhiteSpace(p_TemplateName))
@@ -502,7 +533,7 @@ namespace vusvc.Managers
                     RedirectStandardError = true,
                     RedirectStandardOutput = true,
                     Arguments = s_LaunchArguments,
-                    WorkingDirectory = Path.GetDirectoryName(s_VuPath) ?? "./"
+                    //WorkingDirectory = Path.GetDirectoryName(s_VuPath) ?? "./"
                 },
                 EnableRaisingEvents = true
             };
@@ -538,7 +569,9 @@ namespace vusvc.Managers
                     PlayerIds = new List<Guid>(),
                     RconPassword = s_RconPassword,
                     RconPort = s_RconPort,
-                    ServerType = p_ServerType
+                    ServerType = p_ServerType,
+                    KeyPath = s_ServerKeyPath,
+                    ServerFrequency = p_Frequency
                 }
             };
 
@@ -549,10 +582,11 @@ namespace vusvc.Managers
             return true;
         }
 
-        public bool SpawnServer(out Server? p_Server)
+        public bool Debug_SpawnServer(out Server? p_Server)
         {
             p_Server = null;
 
+#if DEBUG
             var s_ExecutablePath = @"C:\Users\godiwik\AppData\Local\VeniceUnleashed\client\vu.com";
             // UDP mharmony port
             var s_MonitoredHarmonyPort = (ushort)7948;
@@ -615,6 +649,9 @@ namespace vusvc.Managers
             m_Servers.Add(s_Win32Server);
             
             return true;
+#else
+            return false;
+#endif
         }
 
         private void OnProcessExited(object sender, EventArgs e)
@@ -626,7 +663,14 @@ namespace vusvc.Managers
             if (s_Server is null)
                 return;
 
-            Console.WriteLine($"Server: {s_Server.Id} with Zeus Id {s_Server.ZeusId} has terminated.");
+            var s_ServerId = s_Server.Id;
+            var s_ZeusId = s_Server.ZeusId;
+
+            Console.WriteLine($"Server: {s_ServerId} with Zeus Id {s_ZeusId} has terminated.");
+
+            // Force remove the server
+            if (!RemoveServer(s_Server.Id, true))
+                Console.Write($"err: server removal failed ({s_ServerId}).");
         }
 
         private void OnProcessErrorReceived(object sender, DataReceivedEventArgs e)
@@ -685,7 +729,7 @@ namespace vusvc.Managers
         /// </summary>
         /// <param name="p_ServerId">Server id</param>
         /// <returns>True on success, false otherwise</returns>
-        public bool TerminateServer(Guid p_ServerId)
+        public bool TerminateServer(Guid p_ServerId, bool p_DeleteInstanceDirectory = false)
         {
             // Get the Win32Server reference
             var s_Server = m_Servers.FirstOrDefault(p_Win32Server => p_Win32Server._Server.Id == p_ServerId);
@@ -694,6 +738,23 @@ namespace vusvc.Managers
 
             // Kill the process
             s_Server._Process.Kill(true);
+
+            if (p_DeleteInstanceDirectory)
+            {
+                try
+                {
+                    // If the directory exists delete it
+                    if (Directory.Exists(s_Server.InstancePath))
+                        Directory.Delete(s_Server.InstancePath, true);
+                }
+                catch (Exception p_Exception)
+                {
+                    Console.WriteLine($"err: could not delete instance for server ({p_ServerId}), ({p_Exception}).");
+                }
+
+                // Clear the instance path
+                s_Server.InstancePath = string.Empty;
+            }
 
             return true;
         }
@@ -720,10 +781,10 @@ namespace vusvc.Managers
             if (p_Terminate)
             {
                 // Attempt to kill the process
-                if (!TerminateServer(p_ServerId))
+                if (!TerminateServer(p_ServerId, true))
                     Console.WriteLine($"warn: server ({p_ServerId}) could not be terminated.");
             }
-            
+
             // Remove the server from our list
             return m_Servers.RemoveAll(p_Win32Server => p_Win32Server._Server.Id == p_ServerId) > 0;
         }
@@ -737,8 +798,10 @@ namespace vusvc.Managers
             // Terminate all of the servers if needed
             if (p_Terminate)
             {
-                foreach (var l_Server in m_Servers)
-                    l_Server._Process.Kill(true);
+                var s_ServerIdList = m_Servers.Select(p_Win32Server => p_Win32Server._Server.Id).ToArray();
+
+                foreach (var l_ServerId in s_ServerIdList)
+                    TerminateServer(l_ServerId, true);
             }
 
             // Clear the list
@@ -761,7 +824,7 @@ namespace vusvc.Managers
             // Copy each file into it's new directory.
             foreach (FileInfo fi in source.GetFiles())
             {
-                Console.WriteLine(@"Copying {0}\{1}", target.FullName, fi.Name);
+                //Console.WriteLine(@"Copying {0}\{1}", target.FullName, fi.Name);
                 fi.CopyTo(Path.Combine(target.ToString(), fi.Name), true);
             }
 

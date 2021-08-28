@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Mime;
 using System.Threading.Tasks;
 using System.Web;
 using vusvc.Data;
@@ -26,10 +27,16 @@ namespace vusvc.Controllers
             m_ServerManager = p_ServerManager;
         }
 
-        // GET: api/<ServerController>
-        [HttpGet]
-        public IActionResult Index()
+        /// <summary>
+        /// Server List View
+        /// </summary>
+        /// <param name="p_Key"></param>
+        /// <returns></returns>
+        public IActionResult GetServerList(string p_Key)
         {
+            if (p_Key != Program.c_AdminKey)
+                return NotFound();
+
             ViewData["Servers"] = (m_ServerManager as ServerManager).Servers.ToArray();
 
             return View();
@@ -49,9 +56,13 @@ namespace vusvc.Controllers
             return s_Server;
         }
 
-        [HttpGet("output/{p_ServerId}")]
-        public ActionResult<string> GetOutput(Guid p_ServerId)
+        // GET api/<ServerController>/output/{p_ServerId}
+        [HttpGet("Output/{p_ServerId}")]
+        public ActionResult<string> GetOutput(Guid p_ServerId, string p_Key)
         {
+            if (p_Key != Program.c_AdminKey)
+                return NotFound();
+
             var s_Server = m_ServerManager.GetServerById(p_ServerId);
             if (s_Server is null)
                 return BadRequest();
@@ -59,9 +70,13 @@ namespace vusvc.Controllers
             return HttpUtility.HtmlEncode(s_Server.OutputLog);
         }
 
-        [HttpGet("error/{p_ServerId}")]
-        public ActionResult<string> GetError(Guid p_ServerId)
+        // GET api/<ServerController>/error/{p_ServerId}
+        [HttpGet("Error/{p_ServerId}")]
+        public ActionResult<string> GetError(Guid p_ServerId, string p_Key)
         {
+            if (p_Key != Program.c_AdminKey)
+                return NotFound();
+
             var s_Server = m_ServerManager.GetServerById(p_ServerId);
             if (s_Server is null)
                 return BadRequest();
@@ -70,31 +85,59 @@ namespace vusvc.Controllers
 
         }
 
-        [HttpGet("SpawnServer")]
-        public ActionResult<Server> SpawnServer()
+        public struct RemoveServerRequest
         {
-            if (!(m_ServerManager as ServerManager).SpawnServer(out Server? s_Server))
+            public Guid ServerId { get; set; }
+            public bool Terminate { get; set; }
+        }
+
+        [HttpPost("Remove")]
+        [Consumes(MediaTypeNames.Application.Json)]
+        public IActionResult RemoveServer([FromBody]RemoveServerRequest p_Request, string p_Key)
+        {
+            if (p_Key != Program.c_AdminKey)
+                return NotFound();
+
+            if (!m_ServerManager.RemoveServer(p_Request.ServerId, p_Request.Terminate))
+                return BadRequest("could not remove server");
+
+            return Ok();
+        }
+
+#if DEBUG
+        // GET api/<ServerController>/DebugSpawnServer
+        [HttpGet("DebugSpawnServer")]
+        public ActionResult<Server> SpawnServer(string p_Key)
+        {
+            if (p_Key != Program.c_AdminKey)
+                return NotFound();
+
+            if (!(m_ServerManager as ServerManager).Debug_SpawnServer(out Server? s_Server))
                 return BadRequest();
 
             return s_Server;
         }
+#endif
 
-        // POST api/<ServerController>
-        [HttpPost]
-        public void Post([FromBody] string value)
+        public struct CreateServerRequest
         {
+            public bool Unlisted { get; set; }
+            public string Template { get; set; }
+            public Server.ServerInstanceFrequency Frequency { get; set; }
+            public Server.ServerInstanceType ServerType { get; set; }
         }
 
-        // PUT api/<ServerController>/5
-        [HttpPut("{id}")]
-        public void Put(int id, [FromBody] string value)
+        [HttpPost("Create")]
+        [Consumes(MediaTypeNames.Application.Json)]
+        public ActionResult<Server> CreateServer([FromBody]CreateServerRequest p_Request, string p_Key)
         {
-        }
+            if (p_Key != Program.c_AdminKey)
+                return NotFound();
 
-        // DELETE api/<ServerController>/5
-        [HttpDelete("{id}")]
-        public void Delete(int id)
-        {
+            if (!m_ServerManager.AddServer(out Server? p_Server, p_Request.Unlisted, "0.0.0.0", p_Request.Template, p_Request.Frequency, p_Request.ServerType))
+                return BadRequest("server creation failed");
+
+            return p_Server;
         }
     }
 }

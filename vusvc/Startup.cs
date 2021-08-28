@@ -79,7 +79,7 @@ namespace vusvc
             lifetime.ApplicationStopping.Register(() =>
             {
                 playerManager.Save("./players.json");
-                serverManager.TerminateAllServers();
+                serverManager.RemoveAllServers(true);
             });
         }
     }
