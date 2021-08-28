@@ -11,13 +11,32 @@
 
 <h2>Actively Running Servers:</h2>
 <br />
-<ul>
+<table>
+    <tr>
+        <th>Type</th>
+        <th>Id</th>
+        <th>Name</th>
+        <th>Players</th>
+        <th>Error</th>
+        <th>Output</th>
+    </tr>
+
     @{
         var s_Servers = (vusvc.Data.Server[])ViewData["Servers"];
         for (int i = 0; i < s_Servers.Length; i++)
         {
             var l_Server = s_Servers[i];
-            <li>@l_Server.Id</li>
+            <tr>
+                <td>@l_Server.ServerType</td>
+                <td>@l_Server.Id</td>
+                <td>@l_Server.Name</td>
+                <td>@l_Server.PlayerIds.Count</td>
+                <td>Errors</td>
+                <td>Output</td>
+            </tr>
         }
     }
+</table>
+<ul>
+
 </ul>

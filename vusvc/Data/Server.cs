@@ -42,6 +42,32 @@ namespace vusvc.Data
         }
 
         /// <summary>
+        /// Enum for all of the high frequency options that are available to vu
+        /// </summary>
+        public enum ServerInstanceFrequency
+        {
+            /// <summary>
+            /// 30-hz, Battlefield default
+            /// </summary>
+            Frequency30,
+
+            /// <summary>
+            /// 60-hz
+            /// </summary>
+            Frequency60,
+
+            /// <summary>
+            /// 120-hz
+            /// </summary>
+            Frequency120,
+
+            /// <summary>
+            /// Count within this enum
+            /// </summary>
+            COUNT
+        }
+
+        /// <summary>
         /// Backend id for this server instance
         /// </summary>
         public Guid Id { get; set; } = Guid.Empty;
@@ -57,6 +83,11 @@ namespace vusvc.Data
         /// Type of server
         /// </summary>
         public ServerInstanceType ServerType { get; set; } = ServerInstanceType.Undefined;
+
+        /// <summary>
+        /// Server frequncy (default: 30hz)
+        /// </summary>
+        public ServerInstanceFrequency ServerFrequency { get; set; } = ServerInstanceFrequency.Frequency30;
 
         /// <summary>
         /// Display name of server
@@ -94,7 +125,19 @@ namespace vusvc.Data
         /// </summary>
         public List<Guid> PlayerIds { get; set; } = new List<Guid>();
 
+        /// <summary>
+        /// Error log data
+        /// </summary>
         public string ErrorLog { get; set; }
+
+        /// <summary>
+        /// Output log data
+        /// </summary>
         public string OutputLog { get; set; }
+
+        /// <summary>
+        /// Server.key path
+        /// </summary>
+        public string KeyPath { get; set; }
     }
 }

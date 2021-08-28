@@ -1,0 +1,5 @@
+﻿Place any of the server.key's here.
+
+File name does not matter at all, as long as it ends in *.key
+
+The ServerManager will be smart enough to know which keys are in-use or not
