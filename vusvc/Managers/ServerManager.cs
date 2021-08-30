@@ -739,6 +739,9 @@ namespace vusvc.Managers
             // Kill the process
             s_Server._Process.Kill(true);
 
+            // Wait for the process to free all resources before continuing
+            s_Server.WaitTask.Wait();
+
             if (p_DeleteInstanceDirectory)
             {
                 try
@@ -768,6 +771,8 @@ namespace vusvc.Managers
             {
                 l_Server._Process.Kill(true);
             }
+
+            Task.WaitAll(m_Servers.Select(p_Win32Server => p_Win32Server.WaitTask).ToArray());
         }
 
         /// <summary>

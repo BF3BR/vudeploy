@@ -18,7 +18,7 @@ namespace vusvc.Controllers
     {
         public struct ServerView
         {
-            
+
         }
         private readonly IServerManager m_ServerManager;
 
@@ -38,6 +38,7 @@ namespace vusvc.Controllers
             //    return NotFound();
 
             ViewData["Servers"] = (m_ServerManager as ServerManager).Servers.ToArray();
+            ViewData["ServerManager"] = m_ServerManager;
 
             return View();
         }
@@ -86,8 +87,8 @@ namespace vusvc.Controllers
         }
 
         [HttpPost("Remove")]
-        //[Consumes(MediaTypeNames.Application.Json)]
-        public IActionResult RemoveServer(RemoveServerRequest p_Request)
+        [Consumes(MediaTypeNames.Application.Json)]
+        public IActionResult RemoveServer([FromBody] RemoveServerRequest p_Request)
         {
             //if (p_Key != Program.c_AdminKey)
             //    return NotFound();

@@ -1,15 +1,16 @@
-﻿
-@*
+﻿@*
     For more information on enabling MVC for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
 *@
 @{
     Layout = "_Layout";
+    ViewData["Initialized"] = false;
 }
 
 <h1>Server Page</h1>
 <p>All currently running servers will be displayed below</p>
 
 <h2>Actively Running Servers:</h2>
+<p>@ViewData["Status"]</p>
 <br />
 <table>
     <tr>
@@ -35,13 +36,31 @@
                 <td><a href="Server/Error/@l_Server.Id">Errors</a></td>
                 <td><a href="Server/Output/@l_Server.Id">Output</a></td>
                 <td>
-                    @Html.ActionLink("Kill", "Remove", "Server", new vusvc.Controllers.ServerController.RemoveServerRequest { ServerId = l_Server.Id, Terminate = true })
+                    <form enctype="application/json" action="Server/Remove" method="post">
+                        <button name="submit" type="submit" value='{ "ServerId": @l_Server.Id, "Terminate": true }'>Kill</button>
+                    </form>
                 </td>
 
             </tr>
         }
+
+        ViewData["Initialized"] = true;
+
+        IActionResult UpdateHeading(Guid p_ServerId)
+        {
+            if (!(bool)ViewData["Initialized"])
+                return new OkResult();
+
+            var s_ServerManager = (vusvc.Managers.IServerManager)ViewData["ServerManager"];
+            if (s_ServerManager.RemoveServer(p_ServerId, true))
+                ViewData["Status"] = $"Server ({p_ServerId}) has been removed.";
+            else
+                ViewData["Status"] = $"Err: Server ({p_ServerId}) could not be removed.";
+
+
+            return new RedirectResult("~/Server");
+        }
     }
 </table>
 <ul>
-
 </ul>
