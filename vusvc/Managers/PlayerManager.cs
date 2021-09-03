@@ -13,7 +13,7 @@ namespace vusvc.Managers
         // List of all of the players
         private List<Player> m_Players = new List<Player>();
 
-        private const string c_DefaultDatabasePath = "./players.json";
+        public const string c_DefaultDatabasePath = "./Data/Db/players.json";
         private const int c_DefaultMaxPlayerName = 32;
 
         public PlayerManager()

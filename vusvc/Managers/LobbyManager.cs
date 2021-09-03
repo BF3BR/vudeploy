@@ -6,6 +6,17 @@ using vusvc.Extensions;
 
 namespace vusvc.Managers
 {
+    /// <summary>
+    /// A lobby is the representation of a group of players.
+    /// 
+    /// They can be created or destroyed at will, and they expire after a default of c_DefaultExpirationTimeInMinutes
+    /// 
+    /// The lobby system will be responsible for keeping players together even if they come from different endpoints.
+    /// 
+    /// An endpoint could be anything from a webpage, or any of the lobby/idle servers for BattleRoyale or your mod to join to be put in a match.
+    /// 
+    /// Players don't physically have to be on the same game server in order to join a match server as a squad.
+    /// </summary>
     public class LobbyManager : ILobbyManager
     {
         // List of all of the lobbies
@@ -182,15 +193,19 @@ namespace vusvc.Managers
             return true;
         }
 
-        public bool UpdateLobby(Guid p_LobbyId)
+        public bool UpdateLobby(Guid p_LobbyId, Guid p_PlayerId)
         {
             // Get the lobby and validate it exists
             var s_Lobby = GetLobbyById(p_LobbyId);
             if (s_Lobby is null)
                 return false;
 
+            // Deny players attempting to update lobbies they are not currently in
+            if (!s_Lobby.PlayerIds.Contains(p_PlayerId))
+                return false;
+
             // Update the creation time so this lobby does not expire
-            s_Lobby.CreationTime = DateTime.Now;
+            s_Lobby.Update();
 
             return true;
         }

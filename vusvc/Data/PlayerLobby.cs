@@ -56,5 +56,15 @@ namespace vusvc.Data
             return new string(Enumerable.Repeat(chars, 4)
               .Select(s => s[m_Random.Next(s.Length)]).ToArray());
         }
+
+        /// <summary>
+        /// Updates the lobby's creation time
+        /// 
+        /// NOTE: This can and probably will be expanded in the future
+        /// </summary>
+        public void Update()
+        {
+            CreationTime = DateTime.Now;
+        }
     }
 }

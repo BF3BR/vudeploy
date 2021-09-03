@@ -78,7 +78,10 @@ namespace vusvc
 
             lifetime.ApplicationStopping.Register(() =>
             {
-                playerManager.Save("./players.json");
+                // Save the PlayerManager database to file
+                playerManager.Save(PlayerManager.c_DefaultDatabasePath);
+
+                // Clear all servers from the list
                 serverManager.RemoveAllServers(true);
             });
         }

@@ -25,12 +25,13 @@ namespace vusvc.Controllers
     [ApiController]
     public class LobbyController : Controller
     {
+        #region Requests and Responses
         public struct CreateLobbyRequest
         {
             /// <summary>
             /// Player Id
             /// </summary>
-            public Guid Id { get; set; }
+            public Guid PlayerId { get; set; }
 
             /// <summary>
             /// Name of the lobby to create
@@ -50,7 +51,7 @@ namespace vusvc.Controllers
             /// <summary>
             /// Lobby id
             /// </summary>
-            public Guid Id { get; set; }
+            public Guid LobbyId { get; set; }
 
             /// <summary>
             /// Lobby code
@@ -60,20 +61,45 @@ namespace vusvc.Controllers
 
         public struct DestroyLobbyRequest
         {
+            /// <summary>
+            /// Requesting player id to destroy lobby (must be an admin of the lobby, checked server side)
+            /// </summary>
             public Guid PlayerId { get; set; }
+
+            /// <summary>
+            /// Lobby id to destroy
+            /// </summary>
             public Guid LobbyId { get; set; }
         }
 
         public struct JoinLobbyRequest
         {
+            /// <summary>
+            /// The player id requesting to join
+            /// </summary>
             public Guid PlayerId { get; set; }
+
+            /// <summary>
+            /// The lobby id to join
+            /// </summary>
             public Guid LobbyId { get; set; }
+
+            /// <summary>
+            /// The lobby code (for private lobbies)
+            /// </summary>
             public string Code { get; set; }
         }
 
         public struct LeaveLobbyRequest
         {
+            /// <summary>
+            /// The player id that is requesting to leave
+            /// </summary>
             public Guid PlayerId { get; set; }
+
+            /// <summary>
+            /// The lobby id of the lobby to leave
+            /// </summary>
 
             public Guid LobbyId { get; set; }
         }
@@ -109,6 +135,23 @@ namespace vusvc.Controllers
             public string[] PlayerNames { get; set; }
         }
 
+        /// <summary>
+        /// Lobby update request will extend the existence of the lobby
+        /// </summary>
+        public struct LobbyUpdateRequest
+        {
+            /// <summary>
+            /// Lobby id to update
+            /// </summary>
+            public Guid LobbyId { get; set; }
+
+            /// <summary>
+            /// Player id of the requesting player
+            /// </summary>
+            public Guid PlayerId { get; set; }
+        }
+        #endregion
+
         // List of lobbies
         private List<PlayerLobby> m_Lobbies;
 
@@ -142,11 +185,11 @@ namespace vusvc.Controllers
                 return BadRequest();
 
             // Check to see if we have a zeus id
-            if (p_Request.Id == Guid.Empty)
+            if (p_Request.PlayerId == Guid.Empty)
                 return BadRequest();
 
             // Get the player
-            var s_Player = m_PlayerManager.GetPlayerById(p_Request.Id);
+            var s_Player = m_PlayerManager.GetPlayerById(p_Request.PlayerId);
             if (s_Player is null)
                 return BadRequest();
 
@@ -159,7 +202,7 @@ namespace vusvc.Controllers
 
             return new CreateLobbyResponse
             {
-                Id = s_Lobby.Id,
+                LobbyId = s_Lobby.Id,
                 Code = s_Lobby.Code
             };
         }
@@ -207,9 +250,9 @@ namespace vusvc.Controllers
             return Ok();
         }
 
-        [HttpGet]
+        [HttpPost("Status")]
         [Consumes(MediaTypeNames.Application.Json)]
-        public ActionResult<LobbyStatusResponse> GetStatus(LobbyStatusRequest p_Request)
+        public ActionResult<LobbyStatusResponse> LobbyStatus(LobbyStatusRequest p_Request)
         {
             // Find if the lobby exists
             var s_Lobby = m_LobbyManager.GetLobbyById(p_Request.LobbyId);
@@ -234,6 +277,16 @@ namespace vusvc.Controllers
                 MaxPlayerCount = s_Lobby.MaxPlayers,
                 PlayerNames = s_PlayerNames
             };
+        }
+
+        [HttpPost("Update")]
+        [Consumes(MediaTypeNames.Application.Json)]
+        public IActionResult LobbyUpdate(LobbyUpdateRequest p_Request)
+        {
+            if (!m_LobbyManager.UpdateLobby(p_Request.LobbyId, p_Request.PlayerId))
+                return BadRequest();
+
+            return Ok();
         }
     }
 }

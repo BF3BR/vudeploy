@@ -813,6 +813,11 @@ namespace vusvc.Managers
             m_Servers.Clear();
         }
 
+        /// <summary>
+        /// This was shamelessly stolen from stackoverflow
+        /// </summary>
+        /// <param name="source"></param>
+        /// <param name="target"></param>
         private static void CopyAll(DirectoryInfo source, DirectoryInfo target)
         {
             if (source.FullName.ToLower() == target.FullName.ToLower())
