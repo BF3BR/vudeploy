@@ -59,21 +59,20 @@ namespace vusvc.Controllers
         }
 
         // GET: api/<PlayerController>
-        [HttpGet("{p_Key}")]
-        public ActionResult<SafePlayerInfo[]> Get(string? p_Key)
+        [HttpGet]
+        public ActionResult<SafePlayerInfo[]> Get()
         {
             var s_PlayersArray = m_PlayerManager.GetAllPlayers().Select(p_Player => new SafePlayerInfo
             {
                 Name = p_Player.Name,
                 // If someone used an admin key we return player id's otherwise blank them for security reasons
-                PlayerId = p_Key == Program.c_AdminKey ? p_Player.Id : Guid.Empty
+                PlayerId = /*p_Key == Program.c_AdminKey ? p_Player.Id : */Guid.Empty
             }).ToArray();
 
             return s_PlayersArray;
         }
 
-        // POST api/<PlayerController>/Info
-        [HttpPost("Info")]
+        [HttpGet("Info/{p_PlayerId}")]
         public IActionResult Info(Guid p_PlayerId)
         {
             var s_Player = m_PlayerManager.GetPlayerById(p_PlayerId);

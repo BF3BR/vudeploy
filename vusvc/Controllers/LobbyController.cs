@@ -59,7 +59,7 @@ namespace vusvc.Controllers
             public string Code { get; set; }
         }
 
-        public struct DestroyLobbyRequest
+        public struct RemoveLobbyRequest
         {
             /// <summary>
             /// Requesting player id to destroy lobby (must be an admin of the lobby, checked server side)
@@ -209,7 +209,7 @@ namespace vusvc.Controllers
 
         [HttpPost("Remove")]
         [Consumes(MediaTypeNames.Application.Json)]
-        public IActionResult RemoveLobby(DestroyLobbyRequest p_Request)
+        public IActionResult RemoveLobby(RemoveLobbyRequest p_Request)
         {
             // Check to see if the lobby exists
             var s_Lobby = m_LobbyManager.GetLobbyById(p_Request.LobbyId);
