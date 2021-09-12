@@ -1,10 +1,9 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using System;
-using System.Collections.Generic;
 using System.Linq;
-using System.Threading.Tasks;
 using vusvc.Data;
 using vusvc.Managers;
+using vusvc.Models;
 
 // For more information on enabling Web API for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
 
@@ -14,42 +13,6 @@ namespace vusvc.Controllers
     [ApiController]
     public class PlayerController : Controller
     {
-        #region Requests and Responses
-        /// <summary>
-        /// This is what is returned to the user
-        /// 
-        /// This strips out some extra information such as the zeus id
-        /// and the previous names
-        /// </summary>
-        public struct SafePlayerInfo
-        {
-            public Guid PlayerId { get; set; }
-            public string Name { get; set; }
-            
-        }
-
-        /// <summary>
-        /// Create a new backend player request
-        /// 
-        /// BUG: There are no protections against a malicious admin that has players zeus id's
-        /// from querying this with a known zeus id
-        /// 
-        /// TODO: Eventually find a new way in the future with identity management to secure this better
-        /// </summary>
-        public struct CreatePlayerRequest
-        {
-            /// <summary>
-            /// The players ZEUS id (VU/account specific)
-            /// </summary>
-            public Guid ZeusId { get; set; }
-
-            /// <summary>
-            /// Current name of the player
-            /// </summary>
-            public string Name { get; set; }
-        }
-        #endregion
-
         // Player manager
         private IPlayerManager m_PlayerManager;
 
