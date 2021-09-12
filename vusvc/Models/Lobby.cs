@@ -69,7 +69,7 @@ namespace vusvc.Models
         /// <summary>
         /// The lobby code (for private lobbies)
         /// </summary>
-        public string Code { get; set; }
+        public string LobbyCode { get; set; }
     }
 
     public struct LeaveLobbyRequest

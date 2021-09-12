@@ -9,7 +9,18 @@ namespace vusvc.Data
     /// </summary>
     public class PlayerLobby
     {
-        private static Random m_Random = new Random();
+        public enum LobbySearchLockType
+        {
+            /// <summary>
+            /// No players should be added or removed from this lobby
+            /// </summary>
+            Locked,
+
+            /// <summary>
+            /// Players in this lobby are free to be merged, removed, or players added
+            /// </summary>
+            Unlocked,
+        }
 
         /// <summary>
         /// Id of this lobby
@@ -49,6 +60,18 @@ namespace vusvc.Data
         /// When a lobby is updated to keep it in existence, just set the creation time to current
         /// </summary>
         public DateTime CreationTime { get; set; }
+
+        /// <summary>
+        /// This will tell the backend how we want to handle this lobby.
+        /// 
+        /// See documentation for: LobbySearchLockType for usage
+        /// 
+        /// By default, all lobbies are unlocked
+        /// </summary>
+        public LobbySearchLockType SearchLockType { get; set; } = LobbySearchLockType.Unlocked;
+
+        // Private generator for new codes
+        private static Random m_Random = new Random();
 
         public static string GenerateCode()
         {

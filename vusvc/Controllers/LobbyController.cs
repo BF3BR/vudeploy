@@ -105,10 +105,10 @@ namespace vusvc.Controllers
         public IActionResult JoinLobby(JoinLobbyRequest p_Request)
         {
             // Length check the code
-            if (p_Request.Code.Length > 4)
+            if (p_Request.LobbyCode.Length > 4)
                 return BadRequest();
 
-            if (!m_LobbyManager.JoinLobby(p_Request.LobbyId, p_Request.PlayerId, p_Request.Code))
+            if (!m_LobbyManager.JoinLobby(p_Request.LobbyId, p_Request.PlayerId, p_Request.LobbyCode))
                 return BadRequest();
 
             return Ok();
