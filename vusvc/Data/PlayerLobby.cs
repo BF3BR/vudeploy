@@ -22,10 +22,20 @@ namespace vusvc.Data
             Unlocked,
         }
 
+        public enum LobbySearchState
+        {
+            Invalid,
+            None,
+            Searching,
+            WaitingForServer,
+            InGame,
+            COUNT
+        }
+
         /// <summary>
         /// Id of this lobby
         /// </summary>
-        public Guid Id { get; set; } = Guid.Empty;
+        public Guid LobbyId { get; set; } = Guid.Empty;
 
         /// <summary>
         /// Display name of the lobby
@@ -70,6 +80,8 @@ namespace vusvc.Data
         /// </summary>
         public LobbySearchLockType SearchLockType { get; set; } = LobbySearchLockType.Unlocked;
 
+        public LobbySearchState SearchState { get; set; } = LobbySearchState.None;
+
         // Private generator for new codes
         private static Random m_Random = new Random();
 
@@ -88,6 +100,19 @@ namespace vusvc.Data
         public void Update()
         {
             CreationTime = DateTime.Now;
+        }
+    }
+
+    public class PlayerLobbyCountCompare : IComparer<PlayerLobby>
+    {
+        public int Compare(PlayerLobby p_A, PlayerLobby p_B)
+        {
+            if (p_A.PlayerIds.Count > p_B.PlayerIds.Count)
+                return 1;
+            else if (p_A.PlayerIds.Count < p_B.PlayerIds.Count)
+                return -1;
+            else
+                return 0;
         }
     }
 }

@@ -76,7 +76,7 @@ namespace vusvc.Controllers
 
             return new CreateLobbyResponse
             {
-                LobbyId = s_Lobby.Id,
+                LobbyId = s_Lobby.LobbyId,
                 Code = s_Lobby.Code
             };
         }
@@ -147,7 +147,7 @@ namespace vusvc.Controllers
 
             return new LobbyStatusResponse
             {
-                LobbyId = s_Lobby.Id,
+                LobbyId = s_Lobby.LobbyId,
                 MaxPlayerCount = s_Lobby.MaxPlayers,
                 PlayerNames = s_PlayerNames
             };

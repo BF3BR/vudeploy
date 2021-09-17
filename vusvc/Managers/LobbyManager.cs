@@ -81,11 +81,14 @@ namespace vusvc.Managers
             var s_Lobby = new PlayerLobby
             {
                 AdminPlayerId = s_CreatorPlayer.Id,
-                Id = s_LobbyId,
+                LobbyId = s_LobbyId,
                 MaxPlayers = s_MaxPlayerCount,
                 Name = s_SanitizedName,
                 Code = s_Code,
-                PlayerIds = { s_CreatorPlayer.Id }
+                PlayerIds = { s_CreatorPlayer.Id },
+                CreationTime = DateTime.Now,
+                SearchLockType = (s_MaxPlayerCount == 1 ? PlayerLobby.LobbySearchLockType.Locked : PlayerLobby.LobbySearchLockType.Unlocked),
+                SearchState = PlayerLobby.LobbySearchState.None
             };
 
             p_PlayerLobby = s_Lobby;
@@ -107,7 +110,7 @@ namespace vusvc.Managers
 
         public PlayerLobby? GetLobbyById(Guid p_LobbyId)
         {
-            return m_Lobbies.FirstOrDefault(p_Lobby => p_Lobby.Id == p_LobbyId);
+            return m_Lobbies.FirstOrDefault(p_Lobby => p_Lobby.LobbyId == p_LobbyId);
         }
 
         public bool JoinLobby(Guid p_LobbyId, Guid p_PlayerId, string p_Code)
@@ -147,7 +150,10 @@ namespace vusvc.Managers
                 return true;
 
             // Remove the player from the lobby
-            s_Lobby.PlayerIds.RemoveAll(p_Pid => p_Pid == p_PlayerId);
+            var s_PlayerIdsRemoved = s_Lobby.PlayerIds.RemoveAll(p_Pid => p_Pid == p_PlayerId);
+            if (s_PlayerIdsRemoved <= 0)
+                return true;
+
 
             // Check to see if the admin is the one leaving
             if (s_Lobby.AdminPlayerId == p_PlayerId)
@@ -168,7 +174,7 @@ namespace vusvc.Managers
         public bool RemoveLobby(Guid p_LobbyId)
         {
             // Remove all of the lobbies with this guid
-            var s_LobbiesRemoved = m_Lobbies.RemoveAll(p_Lid => p_Lid.Id == p_LobbyId);
+            var s_LobbiesRemoved = m_Lobbies.RemoveAll(p_Lid => p_Lid.LobbyId == p_LobbyId);
 
             // Return if we removed anything
             return s_LobbiesRemoved > 0;
