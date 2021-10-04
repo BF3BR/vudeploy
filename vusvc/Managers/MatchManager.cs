@@ -84,24 +84,25 @@ namespace vusvc.Managers
             /// <summary>
             /// MatchManager match status, this isn't needed/used in the db so we add it to the ext
             /// </summary>
-            public Status MatchStatus { get; set; }
+            public Status MatchStatus { get; set; } = Status.Invalid;
 
             /// <summary>
             /// Time to spend waiting on players before starting a match
             /// </summary>
-            public int MatchmakingTimeInMinutes { get; set; } = 5;
+            public int MatchmakingTimeInMinutes { get; set; } = c_MatchmakingTimeInMinutes;
 
             /// <summary>
             /// Time to wait for a server to become available, or be created
             /// </summary>
-            public int ServerTimeoutInMinutes { get; set; } = 5;
+            public int ServerTimeoutInMinutes { get; set; } = c_ServerTimeoutInMinutes;
 
             public DateTime MatchmakingStartTime { get; set; }
             public DateTime MatchmakingEndTime { get; set; }
-            public DateTime ServerStartTime { get; set; }
-            public DateTime ServerEndTime { get; set; }
+
+            public List<PlayerMatchTeam> Teams { get; set; }
         }
 
+        private List<MatchExt> m_Matches;
         private Queue<Guid> m_QueuedLobbyIds;
         private Timer m_MatchTimer;
         private Timer m_ServerTimer;
@@ -112,16 +113,26 @@ namespace vusvc.Managers
 
         private ILobbyManager m_LobbyManager;
         private IPlayerManager m_PlayerManager;
+        private IServerManager m_ServerManager;
 
         public const int c_MinLobbies = 2;
         public const int c_MatchSize = 32;
+        public const int c_MatchmakingTimeInMinutes = 5;
+        public const int c_ServerTimeoutInMinutes = 5;
 
 
-        public MatchManager(ILobbyManager p_LobbyManager, IPlayerManager p_PlayerManager)
+        public MatchManager(ILobbyManager p_LobbyManager, IPlayerManager p_PlayerManager, IServerManager p_ServerManager)
         {
+            // Save the previous instances
             m_LobbyManager = p_LobbyManager;
             m_PlayerManager = p_PlayerManager;
+            m_ServerManager = p_ServerManager;
 
+            // Create our new queues
+            m_Matches = new List<MatchExt>();
+            m_QueuedLobbyIds = new Queue<Guid>();
+
+            // Set up the checking timers
             m_MatchTimer = new Timer(MatchmakingCheckTimeInSeconds * 1000); // Check matchmaking every 10 seconds
             m_MatchTimer.Elapsed += OnMatchmakingTimerElapsed;
 
@@ -129,6 +140,12 @@ namespace vusvc.Managers
             m_ServerTimer.Elapsed += OnServerTimerElapsed;
         }
 
+
+        /// <summary>
+        /// This function is called every 10 seconds or so to check the player lobbies status and create a match if needed.
+        /// </summary>
+        /// <param name="p_Sender"></param>
+        /// <param name="p_Args"></param>
         private void OnMatchmakingTimerElapsed(object p_Sender, ElapsedEventArgs p_Args)
         {
             // Cast our callback object to a timer
@@ -154,6 +171,7 @@ namespace vusvc.Managers
             var s_LockedLobbies = new List<PlayerLobby>();
             var s_FullLobbies = new List<PlayerLobby>();
             var s_CompletedLobbies = new List<PlayerLobby>();
+            var s_PlayerMatchTeams = new List<PlayerMatchTeam>();
 
             for (var i = 0; i < m_QueuedLobbyIds.Count; ++i)
             {
@@ -246,6 +264,8 @@ namespace vusvc.Managers
                 var s_Index = 0;
                 var s_AvailableTeamIds = 100;
 
+                //var s_PlayerMatchTeams = new List<PlayerMatchTeam>();
+
 
                 foreach (var l_Lobby in s_CompletedLobbies)
                 {
@@ -265,7 +285,7 @@ namespace vusvc.Managers
                         s_Index++;
                     }
 
-                    var s_FrostbiteData = new List<PlayerMatchTeam>();
+                    //var s_FrostbiteData = new List<PlayerMatchTeam>();
 
                     foreach (var l_PlayerId in l_Lobby.PlayerIds)
                     {
@@ -280,7 +300,7 @@ namespace vusvc.Managers
                             PlayerZeusId = l_Player.ZeusId
                         };
 
-                        s_FrostbiteData.Add(s_PlayerMatchTeam);
+                        s_PlayerMatchTeams.Add(s_PlayerMatchTeam);
                     }
                     
                     // TODO: Create the server
@@ -290,33 +310,91 @@ namespace vusvc.Managers
                     // TODO: ;Send shit to server
                 }
             }
-            
-            
-            //var s_QueuedIds = m_QueuedLobbyIds.ToArray();
-            //foreach (var l_QueuedId in s_QueuedIds)
-            //{
-            //    // Get the lobby
-            //    var l_Lobby = m_LobbyManager.GetLobbyById(l_QueuedId);
-            //    if (l_Lobby is null)
-            //        continue;
 
-            //    var l_LobbyLockType = l_Lobby.SearchLockType;
-            //}
+            // Create a new server and wait for it to connect
+            if (!m_ServerManager.AddServer(out Server p_Server, true, "0.0.0.0", "battleroyale", Server.ServerInstanceFrequency.Frequency30, Server.ServerInstanceType.Game))
+            {
+                Console.WriteLine($"Could not create server.");
+                return;
+            }            
+
+            // Add a new match in the waiting state
+            if (!AddMatch(out MatchExt p_Match, p_Server.Id, s_PlayerMatchTeams))
+            {
+                Console.WriteLine("could not create match.");
+                return;
+            }
+
+            // Set the status of this match to waiting on server
+            p_Match.MatchStatus = Status.WaitingForServer;
         }
 
         private void OnServerTimerElapsed(object sender, ElapsedEventArgs e)
         {
-            throw new NotImplementedException();
+            var s_CurrentTime = DateTime.Now;
+            foreach (var l_Match in m_Matches)
+            {
+                if (l_Match.MatchmakingEndTime < s_CurrentTime)
+                {
+                    l_Match.StartTime = s_CurrentTime;
+                    l_Match.EndTime = s_CurrentTime.AddMinutes(45);
+                    l_Match.MatchStatus = Status.WaitingForServer;
+                }
+            }
         }
 
-        public bool QueueLobby(PlayerLobby p_Lobby)
+        public bool QueueLobby(Guid p_LobbyId)
         {
+            // Check to see if this lobby was already queued up or not
+            if (m_QueuedLobbyIds.Contains(p_LobbyId))
+                return false;
+
+            // Enqueue the lobby to launch
+            m_QueuedLobbyIds.Enqueue(p_LobbyId);
+
             return true;
         }
 
-        public bool DequeLobby(Guid p_LobbyId)
+        public bool AddMatch(out MatchExt p_Match, Guid p_ServerId, IEnumerable<PlayerMatchTeam> p_Teams)
         {
+            var s_CurrentTime = DateTime.Now;
+
+            // TODO: All of the match statistics
+            var s_Match = new MatchExt
+            {
+                MatchId = Guid.NewGuid(),
+                MatchStatus = Status.WaitingForPlayers,
+                ServerTimeoutInMinutes = 5,
+                MatchmakingStartTime = s_CurrentTime,
+                MatchmakingEndTime = s_CurrentTime.AddMinutes(c_MatchmakingTimeInMinutes),
+                MatchmakingTimeInMinutes = c_MatchmakingTimeInMinutes,
+                Winners = new List<Guid>(),
+                Players = new List<Guid>(),
+                Teams = p_Teams.ToList(),
+                // Leave the Server* variables empty for when a sever actually gets created
+                ServerId = p_ServerId,
+            };
+
+            m_Matches.Add(s_Match);
+
+            p_Match = s_Match;
+
             return true;
+        }
+
+        public Match? GetMatchById(Guid p_MatchId)
+        {
+            return m_Matches.FirstOrDefault(p_Match => p_Match.MatchId == p_MatchId);
+        }
+
+        public Match? GetMatchByPlayerId(Guid p_PlayerId)
+        {
+            return m_Matches.FirstOrDefault(p_Match => p_Match.Players.Contains(p_PlayerId));
+        }
+
+        public IEnumerable<Match> GetMatches()
+        {
+            return m_Matches;
         }
     }
 }
