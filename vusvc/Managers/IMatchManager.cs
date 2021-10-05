@@ -3,8 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using vusvc.Data;
-using static vusvc.Managers.MatchManager;
-using static vusvc.Managers.MatchManager.MatchExt;
 
 namespace vusvc.Managers
 {
@@ -17,7 +15,7 @@ namespace vusvc.Managers
     /// </summary>
     public interface IMatchManager
     {
-        bool AddMatch(out MatchExt p_Match, Guid p_ServerId, IEnumerable<PlayerMatchTeam> p_Teams);
+        bool AddMatch();
         bool QueueLobby(Guid p_LobbyId);
         Match? GetMatchById(Guid p_MatchId);
         Match? GetMatchByPlayerId(Guid p_PlayerId);
