@@ -18,7 +18,7 @@ namespace vusvc.Models
             public Guid PlayerId { get; set; }
         }
 
-        public struct FindMatchRequest
+        public struct FindMatchByPlayerIdRequest
         {
             public Guid PlayerId { get; set; }
         }
