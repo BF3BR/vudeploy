@@ -34,7 +34,7 @@ namespace vusvc.Controllers
                 return BadRequest();
 
             // If the person requesting to queue is not the admin player ignore the request
-            if (s_Lobby.AdminPlayerId != p_Request.RequestingPlayerId)
+            if (s_Lobby.AdminPlayerId != p_Request.PlayerId)
                 return BadRequest();
 
             if (!m_MatchManager.QueueLobby(s_Lobby.LobbyId))
@@ -53,7 +53,7 @@ namespace vusvc.Controllers
                 return BadRequest();
 
             // If the person requesting to queue is not the admin player ignore the request
-            if (s_Lobby.AdminPlayerId != p_Request.RequestingPlayerId)
+            if (s_Lobby.AdminPlayerId != p_Request.PlayerId)
                 return BadRequest();
 
             if (!m_MatchManager.DequeueLobby(s_Lobby.LobbyId))

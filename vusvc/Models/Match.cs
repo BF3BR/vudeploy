@@ -22,7 +22,7 @@ namespace vusvc.Models
             /// Player that is requeusting to queue
             /// (Only the admin can queue for matchmaking)
             /// </summary>
-            public Guid RequestingPlayerId { get; set; }
+            public Guid PlayerId { get; set; }
         }
 
         /// <summary>
@@ -39,7 +39,7 @@ namespace vusvc.Models
             /// Player that is requeusting to queue
             /// (only the admin can queue for matchmaking)
             /// </summary>
-            public Guid RequestingPlayerId { get; set; }
+            public Guid PlayerId { get; set; }
         }
 
         /// <summary>
