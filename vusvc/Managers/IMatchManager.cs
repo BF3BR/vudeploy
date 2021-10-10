@@ -1,7 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using vusvc.Data;
 
 namespace vusvc.Managers
@@ -15,16 +13,29 @@ namespace vusvc.Managers
     /// </summary>
     public interface IMatchManager
     {
-        bool AddMatch();
         bool QueueLobby(Guid p_LobbyId);
-        Match? GetMatchById(Guid p_MatchId);
-        Match? GetMatchByPlayerId(Guid p_PlayerId);
+        bool DequeueLobby(Guid p_LobbyId);
+        Match GetMatchById(Guid p_MatchId);
+        Match GetMatchByPlayerId(Guid p_PlayerId);
+        Match GetMatchByServerZeusId(Guid p_ServerId);
+
+        /// <summary>
+        /// This searches all matches for a lobby id
+        /// </summary>
+        /// <param name="p_LobbyId"></param>
+        /// <returns></returns>
+        MatchState GetMatchStateByLobbyId(Guid p_LobbyId);
+        MatchState GetMatchStateById(Guid p_MatchId);
+
+        int GetMatchPlayerCount(Guid p_MatchId);
 
         // TODO: Figure out how we will be handling different match conditions and states
 
         IEnumerable<Match> GetMatches();
 
 
+        //bool SetMatchOnline(Guid p_ServerZeusId);
+        Dictionary<Guid, Guid> GetMatchPlayerTeams(Guid p_MatchId);
         
     }
 }

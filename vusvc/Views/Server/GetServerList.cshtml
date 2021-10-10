@@ -30,14 +30,14 @@
             var l_Server = s_Servers[i];
             <tr>
                 <td>@l_Server.ServerType</td>
-                <td>@l_Server.Id</td>
+                <td>@l_Server.ServerId</td>
                 <td>@l_Server.Name</td>
                 <td>@l_Server.PlayerIds.Count</td>
-                <td><a href="Server/Error/@l_Server.Id">Errors</a></td>
-                <td><a href="Server/Output/@l_Server.Id">Output</a></td>
+                <td><a href="Server/Error/@l_Server.ServerId">Errors</a></td>
+                <td><a href="Server/Output/@l_Server.ServerId">Output</a></td>
                 <td>
                     <form enctype="application/json" action="Server/Remove" method="post">
-                        <button name="submit" type="submit" value='{ "ServerId": @l_Server.Id, "Terminate": true }'>Kill</button>
+                        <button name="submit" type="submit" value='{ "ServerId": @l_Server.ServerId, "Terminate": true }'>Kill</button>
                     </form>
                 </td>
 

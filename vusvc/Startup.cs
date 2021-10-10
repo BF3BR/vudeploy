@@ -16,6 +16,24 @@ using vusvc.Managers;
 
 namespace vusvc
 {
+    /*
+     * Flow Chain:
+     * Player -> Logs in gets PlayerId
+     * 
+     * Player -> Uses Player Id to Create Lobby
+     * 
+     * Lobby -> Queues for a match
+     * 
+     * Lobby -> Pings MatchManager for status
+     * 
+     * Lobby -> Gets created match id
+     * 
+     * Lobby -> Pings MatchManager for status until waiting status
+     * 
+     * Player -> Pings MatchManager with MatchId for ConnectionInfo
+     * 
+     * Player -> Joins Server
+     */
     public class Startup
     {
         public Startup(IConfiguration configuration)

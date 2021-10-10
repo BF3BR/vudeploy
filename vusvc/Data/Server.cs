@@ -8,6 +8,11 @@ namespace vusvc.Data
     /// </summary>
     public class Server
     {
+        public class ZeusIdUpdatedEventArgs : EventArgs
+        {
+            public Guid ZeusId { get; set; }
+        }
+
         /// <summary>
         /// The type of server that this is
         /// 
@@ -70,7 +75,7 @@ namespace vusvc.Data
         /// <summary>
         /// Backend id for this server instance
         /// </summary>
-        public Guid Id { get; set; } = Guid.Empty;
+        public Guid ServerId { get; set; } = Guid.Empty;
 
         /// <summary>
         /// Zeus id that is parsed from the output log
@@ -139,5 +144,28 @@ namespace vusvc.Data
         /// Server.key path
         /// </summary>
         public string KeyPath { get; set; }
+
+        /// <summary>
+        /// Event for handling when a server terminates
+        /// </summary>
+        public event EventHandler ServerTerminated;
+
+        /// <summary>
+        /// Event for handling when a zeus id changes
+        /// </summary>
+        public event EventHandler ZeusIdUpdated;
+
+        public virtual void OnTerminated()
+        {
+            ServerTerminated?.Invoke(this, new EventArgs());
+        }
+
+        public virtual void OnZeusIdUpdated(Guid p_ZeusId)
+        {
+            ZeusIdUpdated?.Invoke(this, new ZeusIdUpdatedEventArgs
+            {
+                ZeusId = p_ZeusId
+            });
+        }
     }
 }

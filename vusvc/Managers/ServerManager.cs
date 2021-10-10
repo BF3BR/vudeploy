@@ -208,7 +208,7 @@ namespace vusvc.Managers
         /// <returns>Win32Server on success, null otherwise</returns>
         public Win32Server? GetWin32ServerById(Guid p_ServerId)
         {
-            return m_Servers.FirstOrDefault(p_Win32Server => p_Win32Server._Server.Id == p_ServerId);
+            return m_Servers.FirstOrDefault(p_Win32Server => p_Win32Server._Server.ServerId == p_ServerId);
         }
 
         /// <summary>
@@ -218,7 +218,7 @@ namespace vusvc.Managers
         /// <returns></returns>
         public Server? GetServerById(Guid p_ServerId)
         {
-            return m_Servers.FirstOrDefault(p_Win32Server => p_Win32Server._Server.Id == p_ServerId)?._Server;
+            return m_Servers.FirstOrDefault(p_Win32Server => p_Win32Server._Server.ServerId == p_ServerId)?._Server;
         }
 
         /// <summary>
@@ -561,7 +561,7 @@ namespace vusvc.Managers
                 InstancePath = s_InstanceDirectory,
                 _Server = new Server
                 {
-                    Id = s_ServerId,
+                    ServerId = s_ServerId,
                     GamePassword = s_GamePassword,
                     GamePort = s_GamePort,
                     MonitoredHarmonyPort = s_MHarmonyPort,
@@ -632,7 +632,7 @@ namespace vusvc.Managers
                 _Process = s_Process,
                 _Server = new Server
                 {
-                    Id = Guid.NewGuid(),
+                    ServerId = Guid.NewGuid(),
                     GamePassword = "",
                     GamePort = 25200,
                     MonitoredHarmonyPort = s_MonitoredHarmonyPort,
@@ -663,13 +663,16 @@ namespace vusvc.Managers
             if (s_Server is null)
                 return;
 
-            var s_ServerId = s_Server.Id;
+            var s_ServerId = s_Server.ServerId;
             var s_ZeusId = s_Server.ZeusId;
 
             Console.WriteLine($"Server: {s_ServerId} with Zeus Id {s_ZeusId} has terminated.");
 
+            // Notify all event listeners that this server has terminated
+            s_Server.OnTerminated();
+
             // Force remove the server
-            if (!RemoveServer(s_Server.Id, true))
+            if (!RemoveServer(s_Server.ServerId, true))
                 Console.Write($"err: server removal failed ({s_ServerId}).");
         }
 
@@ -714,6 +717,9 @@ namespace vusvc.Managers
                 //Console.WriteLine($"ZEUS ID FOUND: {s_ZeusId}");
 
                 s_Server.ZeusId = s_ZeusId;
+
+                // Fire events for this server
+                s_Server.OnZeusIdUpdated(s_ZeusId);
             }
 
             // Validate we have any string data instead of adding blank lines or spaces
@@ -732,7 +738,7 @@ namespace vusvc.Managers
         public bool TerminateServer(Guid p_ServerId, bool p_DeleteInstanceDirectory = false)
         {
             // Get the Win32Server reference
-            var s_Server = m_Servers.FirstOrDefault(p_Win32Server => p_Win32Server._Server.Id == p_ServerId);
+            var s_Server = m_Servers.FirstOrDefault(p_Win32Server => p_Win32Server._Server.ServerId == p_ServerId);
             if (s_Server is null)
                 return false;
 
@@ -791,7 +797,7 @@ namespace vusvc.Managers
             }
 
             // Remove the server from our list
-            return m_Servers.RemoveAll(p_Win32Server => p_Win32Server._Server.Id == p_ServerId) > 0;
+            return m_Servers.RemoveAll(p_Win32Server => p_Win32Server._Server.ServerId == p_ServerId) > 0;
         }
 
         /// <summary>
@@ -803,7 +809,7 @@ namespace vusvc.Managers
             // Terminate all of the servers if needed
             if (p_Terminate)
             {
-                var s_ServerIdList = m_Servers.Select(p_Win32Server => p_Win32Server._Server.Id).ToArray();
+                var s_ServerIdList = m_Servers.Select(p_Win32Server => p_Win32Server._Server.ServerId).ToArray();
 
                 foreach (var l_ServerId in s_ServerIdList)
                     TerminateServer(l_ServerId, true);

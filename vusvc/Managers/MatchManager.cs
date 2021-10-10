@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Timers;
 using vusvc.Data;
@@ -10,15 +11,6 @@ namespace vusvc.Managers
     {
         public class MatchExt : Match
         {
-            public enum MatchState
-            {
-                Invalid = 0,
-                Queued,
-                Waiting,
-                InGame,
-                COUNT
-            }
-
             /// <summary>
             /// Current state of the match
             /// </summary>
@@ -49,17 +41,19 @@ namespace vusvc.Managers
         // Reference to the lobby manager
         private ILobbyManager m_LobbyManager;
         private IPlayerManager m_PlayerManager;
+        private IServerManager m_ServerManager;
 
         private Timer m_MatchUpdateTimer;
 
         private const int c_MaxPlayerCount = 100;
         private const int c_WaitTimeInMinutes = 1;
 
-        public MatchManager(ILobbyManager p_LobbyManager, IPlayerManager p_PlayerManager)
+        public MatchManager(ILobbyManager p_LobbyManager, IPlayerManager p_PlayerManager, IServerManager p_ServerManager)
         {
             // Assign our lobby manager
             m_LobbyManager = p_LobbyManager;
             m_PlayerManager = p_PlayerManager;
+            m_ServerManager = p_ServerManager;
 
             // Create our new containers
             m_QueuedLobbies = new Queue<Guid>();
@@ -69,6 +63,14 @@ namespace vusvc.Managers
             // Create the new timers
             m_MatchUpdateTimer = new Timer(1000 * 2);
             m_MatchUpdateTimer.Elapsed += OnMatchUpdate;
+            m_MatchUpdateTimer.Start();
+        }
+
+        ~MatchManager()
+        {
+            // Stop the timer if it already has not been
+            if (m_MatchUpdateTimer.Enabled)
+                m_MatchUpdateTimer.Stop();
         }
 
         private void OnMatchUpdate(object sender, ElapsedEventArgs e)
@@ -127,15 +129,23 @@ namespace vusvc.Managers
             foreach (var l_PendingMatch in m_PendingMatches)
             {
                 // Ensure that all of the matches are currently in the waiting state
-                if (l_PendingMatch.State != MatchExt.MatchState.Waiting)
+                if (l_PendingMatch.State != MatchState.Waiting)
+                {
+#if DEBUG
+                    Debug.WriteLine($"Skipping pending match ({l_PendingMatch.MatchId}) in waiting state.");
+#endif
                     continue;
+                }
 
 
                 // Check to see if we need to launch/start any matches
                 if (DateTime.Now > l_PendingMatch.WaitTimeEnd)
                 {
                     // TOOD: Launch this match
-                    l_PendingMatch.State = MatchExt.MatchState.InGame;
+#if DEBUG
+                    Debug.WriteLine($"Launching Match ({l_PendingMatch.MatchId}) -> InGame.");
+#endif
+                    l_PendingMatch.State = MatchState.InGame;
 
                     // Add to our running matches queue
                     s_PendingMatchesToMove.Add(l_PendingMatch);
@@ -146,9 +156,69 @@ namespace vusvc.Managers
             var s_RemovalCount = m_PendingMatches.RemoveAll(x => s_PendingMatchesToMove.Contains(x));
             if (s_RemovalCount == 0)
                 Console.WriteLine("nothing removed");
+
+            foreach (var l_PendingMatch in s_PendingMatchesToMove)
+            {
+                if (!LaunchMatch(l_PendingMatch))
+                {
+                    Console.WriteLine($"Failed to launch match ({l_PendingMatch.MatchId}).");
+                    continue;
+                }
+            }
         }
 
-        private int GetMatchPlayerCount(Guid p_MatchId)
+        private bool LaunchMatch(MatchExt p_Match)
+        {
+            // Create a new server
+            if (!m_ServerManager.AddServer(out Server? s_Server, true, "0.0.0.0", "battleroyale", Server.ServerInstanceFrequency.Frequency30, Server.ServerInstanceType.Game))
+            {
+                Console.WriteLine($"Could not add server, returning match ({p_Match.MatchId}) back to queue...");
+                m_PendingMatches.Add(p_Match);
+                return false;
+            }
+
+            // Handle when a server dies or crashes
+            s_Server.ServerTerminated += OnServerTerminated;
+
+            // Handle when the zeus id finally populates
+            s_Server.ZeusIdUpdated += OnServerZeusIdUpdated;
+
+            // Set the server id of this server so we can reference it later
+            p_Match.ServerId = s_Server.ServerId;
+
+            return true;
+        }
+
+        private void OnServerZeusIdUpdated(object p_Sender, EventArgs p_Args)
+        {
+            // Verify that we have the corrent event args
+            if (!(p_Args is Server.ZeusIdUpdatedEventArgs))
+                return;
+
+            var s_Server = p_Sender as Server;
+
+            var s_Match = GetMatchByServerId(s_Server.ServerId) as MatchExt;
+
+            Console.WriteLine($"Match ({s_Match.MatchId}) server ({s_Server.ServerId}) has come online.");
+        }
+
+        private void OnServerTerminated(object p_Sender, EventArgs p_Args)
+        {
+            var s_Server = p_Sender as Server;
+
+            var s_Match = GetMatchByServerId(s_Server.ServerId) as MatchExt;
+
+            Console.WriteLine($"Match ({s_Match.MatchId}) server ({s_Server.ServerId}) has gone offline.");
+        }
+
+        /// <summary>
+        /// Get the total amount of players inside of a match
+        /// 
+        /// This first checks pending matches, and if none are found with the matching id current matches are checked next.
+        /// </summary>
+        /// <param name="p_MatchId"></param>
+        /// <returns></returns>
+        public int GetMatchPlayerCount(Guid p_MatchId)
         {
             var s_PendingMatch = m_PendingMatches.FirstOrDefault(p_PendingMatch => p_PendingMatch.MatchId == p_MatchId);
             if (s_PendingMatch is not null)
@@ -168,17 +238,50 @@ namespace vusvc.Managers
 
         public Match GetMatchById(Guid p_MatchId)
         {
-            throw new NotImplementedException();
+            var s_PendingMatch = m_PendingMatches.FirstOrDefault(p_PendingMatch => p_PendingMatch.MatchId == p_MatchId);
+            if (s_PendingMatch is not null)
+                return s_PendingMatch;
+
+            var s_CurrentMatch = m_CurrentMatches.FirstOrDefault(p_CurrentMatch => p_CurrentMatch.MatchId == p_MatchId);
+            if (s_CurrentMatch is not null)
+                return s_CurrentMatch;
+
+            return null;
         }
 
         public Match GetMatchByPlayerId(Guid p_PlayerId)
         {
-            throw new NotImplementedException();
+            var s_PendingMatch = m_PendingMatches.FirstOrDefault(p_PendingMatch => p_PendingMatch.Players.Contains(p_PlayerId));
+            if (s_PendingMatch is not null)
+                return s_PendingMatch;
+
+            var s_CurrentMatch = m_CurrentMatches.FirstOrDefault(p_CurrentMatch => p_CurrentMatch.Players.Contains(p_PlayerId));
+            if (s_CurrentMatch is not null)
+                return s_CurrentMatch;
+
+            return null;
+        }
+
+        public Match GetMatchByServerId(Guid p_ServerId)
+        {
+            var s_PendingMatch = m_PendingMatches.FirstOrDefault(p_PendingMatch => p_PendingMatch.ServerId == p_ServerId);
+            if (s_PendingMatch is not null)
+                return s_PendingMatch;
+
+            var s_CurrentMatch = m_CurrentMatches.FirstOrDefault(p_CurrentMatch => p_CurrentMatch.ServerId == p_ServerId);
+            if (s_CurrentMatch is not null)
+                return s_CurrentMatch;
+
+            return null;
         }
 
         public IEnumerable<Match> GetMatches()
         {
-            throw new NotImplementedException();
+            var s_Matches = new List<Match>(m_PendingMatches);
+
+            s_Matches.AddRange(m_CurrentMatches);
+
+            return s_Matches;
         }
 
         public bool QueueLobby(Guid p_LobbyId)
@@ -212,34 +315,52 @@ namespace vusvc.Managers
             return false;
         }
 
-        public MatchExt.MatchState GetMatchStatusByLobbyId(Guid p_LobbyId)
+        public MatchState GetMatchStateByLobbyId(Guid p_LobbyId)
         {
             // Check to see if we are in the queued state
             if (m_QueuedLobbies.Contains(p_LobbyId))
-                return MatchExt.MatchState.Queued;
+                return MatchState.Queued;
 
             // Check to see if there is a pending match that we are apart of
             if (m_PendingMatches.Any(p_PendingMatch => p_PendingMatch.LobbyIds.Contains(p_LobbyId)))
-                return MatchExt.MatchState.Waiting;
+                return MatchState.Waiting;
 
             // Check to see if we currently are in any match
             if (m_CurrentMatches.Any(p_CurrenetMatch => p_CurrenetMatch.LobbyIds.Contains(p_LobbyId)))
-                return MatchExt.MatchState.InGame;
+                return MatchState.InGame;
 
-            return MatchExt.MatchState.Invalid;
+            return MatchState.Invalid;
         }
 
-        public MatchExt.MatchState GetMatchStatusById(Guid p_MatchId)
+        public MatchState GetMatchStateById(Guid p_MatchId)
         {
             // Check to see if there is a pending match that we are apart of
             if (m_PendingMatches.Any(p_PendingMatch => p_PendingMatch.MatchId == p_MatchId))
-                return MatchExt.MatchState.Waiting;
+                return MatchState.Waiting;
 
             // Check to see if we currently are in any match
             if (m_CurrentMatches.Any(p_CurrenetMatch => p_CurrenetMatch.MatchId == p_MatchId))
-                return MatchExt.MatchState.InGame;
+                return MatchState.InGame;
 
-            return MatchExt.MatchState.Invalid;
+            return MatchState.Invalid;
+        }
+
+        public Match GetMatchByServerZeusId(Guid p_ServerId)
+        {
+            var s_Server = m_ServerManager.GetServerById(p_ServerId);
+            if (s_Server is null)
+                return null;
+
+            return GetMatchByServerId(s_Server.ServerId);
+        }
+
+        public Dictionary<Guid, Guid> GetMatchPlayerTeams(Guid p_MatchId)
+        {
+            var s_Match = GetMatchById(p_MatchId);
+            if (s_Match is null)
+                return new Dictionary<Guid, Guid>();
+
+            return (s_Match as MatchExt)?.PlayerLobbyIds;
         }
     }
 }
