@@ -52,13 +52,13 @@ namespace vusvc.Data
         /// Game start time
         /// </summary>
         [Required]
-        public DateTime StartTime { get; set; }
+        public DateTime GameStartTime { get; set; }
 
         /// <summary>
         /// Game end time
         /// </summary>
         [Required]
-        public DateTime EndTime { get; set; }
+        public DateTime GameEndTime { get; set; }
 
         /// <summary>
         /// Player id's of the winners

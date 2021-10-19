@@ -23,7 +23,11 @@ namespace vusvc.tests
             m_Random = new Random();
 
             m_PlayerManager = new PlayerManager();
-            m_ServerManager = new ServerManager();
+            m_ServerManager = new ServerManager()
+            {
+                InstancesDirectory = @"C:\Users\godiwik\Documents\_source\vudeploy\vusvc\Instances"
+            };
+            
 
             m_LobbyManager = new LobbyManager(m_PlayerManager);
             m_MatchManager = new MatchManager(m_LobbyManager, m_PlayerManager, m_ServerManager);
@@ -111,6 +115,11 @@ namespace vusvc.tests
                     break;
             }
 
+            Debug.WriteLine($"State: {s_CurrentMatchState}.");
+
+            m_ServerManager.TerminateAllServers();
+
+            s_CurrentMatchState = m_MatchManager.GetMatchStateByLobbyId(s_Lobby.LobbyId);
             Debug.WriteLine($"State: {s_CurrentMatchState}.");
         }
     }

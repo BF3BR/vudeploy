@@ -579,6 +579,8 @@ namespace vusvc.Managers
 
             m_Servers.Add(s_Win32Server);
 
+            
+
             return true;
         }
 
