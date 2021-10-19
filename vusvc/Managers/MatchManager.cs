@@ -75,94 +75,110 @@ namespace vusvc.Managers
 
         private void OnMatchUpdate(object sender, ElapsedEventArgs e)
         {
-            // Check to see if there are any queued lobbies that need to be put in a pending match
-            while (m_QueuedLobbies.Any())
+            lock (m_QueuedLobbies)
             {
-                // Get the queued lobby id, we must find somewhere to put this
-                var l_QueuedLobbyId = m_QueuedLobbies.Dequeue();
-
-                // Get the lobby, if it doesn't exist bail
-                var l_Lobby = m_LobbyManager.GetLobbyById(l_QueuedLobbyId);
-                if (l_Lobby is null)
-                    continue;
-
-                if (!m_PendingMatches.Any())
+                lock (m_PendingMatches)
                 {
-                    // TODO: Create a new match, add players, and prepare the queue
-                    continue;
-                }
-
-                // First we need to see if we have any pending matches that need updating
-                foreach (var l_PendingMatch in m_PendingMatches)
-                {
-                    // Get the current player count
-                    var s_Count = l_PendingMatch.Players.Count;
-
-                    // check if this pending match has space for players
-                    if (s_Count >= c_MaxPlayerCount)
-                        continue;
-
-                    // Check to see if we added this lobby to the total player count, we won't overflow
-                    if (s_Count + l_Lobby.PlayerIds.Count > c_MaxPlayerCount)
-                        continue;
-
-                    // Add all players to this match
-                    l_PendingMatch.Players.AddRange(l_Lobby.PlayerIds);
-
-                    // Add the array of zeus id, lobby id
-                    foreach (var l_PlayerId in l_Lobby.PlayerIds)
+                    // Check to see if there are any queued lobbies that need to be put in a pending match
+                    while (m_QueuedLobbies.Any())
                     {
-                        var l_Player = m_PlayerManager.GetPlayerById(l_PlayerId);
-                        if (l_Player is null)
+                        // Get the queued lobby id, we must find somewhere to put this
+                        var l_QueuedLobbyId = m_QueuedLobbies.Dequeue();
+
+                        // Get the lobby, if it doesn't exist bail
+                        var l_Lobby = m_LobbyManager.GetLobbyById(l_QueuedLobbyId);
+                        if (l_Lobby is null)
                             continue;
 
-                        l_PendingMatch.PlayerLobbyIds.Add(l_Player.ZeusId, l_Lobby.LobbyId);
+                        if (!m_PendingMatches.Any())
+                        {
+                            // TODO: Create a new match, add players, and prepare the queue
+                            var l_Match = new MatchExt
+                            {
+                                MatchId = Guid.NewGuid(),
+                                Players = new List<Guid>(),
+                                State = MatchState.Queued,
+                                PlayerLobbyIds = new Dictionary<Guid, Guid>(),
+                                LobbyIds = new List<Guid>()
+                            };
+
+                            m_PendingMatches.Add(l_Match);
+                        }
+
+                        // First we need to see if we have any pending matches that need updating
+                        foreach (var l_PendingMatch in m_PendingMatches)
+                        {
+                            // Get the current player count
+                            var s_Count = l_PendingMatch.Players.Count;
+
+                            // check if this pending match has space for players
+                            if (s_Count >= c_MaxPlayerCount)
+                                continue;
+
+                            // Check to see if we added this lobby to the total player count, we won't overflow
+                            if (s_Count + l_Lobby.PlayerIds.Count > c_MaxPlayerCount)
+                                continue;
+
+                            // Add all players to this match
+                            l_PendingMatch.Players.AddRange(l_Lobby.PlayerIds);
+
+                            // Add the array of zeus id, lobby id
+                            foreach (var l_PlayerId in l_Lobby.PlayerIds)
+                            {
+                                var l_Player = m_PlayerManager.GetPlayerById(l_PlayerId);
+                                if (l_Player is null)
+                                    continue;
+
+                                l_PendingMatch.PlayerLobbyIds.Add(l_Player.ZeusId, l_Lobby.LobbyId);
+                            }
+                            break;
+                        }
                     }
-                    break;
-                }
-            }
 
-            // This is a hack to get around removing objects while iterating
-            var s_PendingMatchesToMove = new List<MatchExt>();
 
-            // Iterate over all of the pending matches
-            foreach (var l_PendingMatch in m_PendingMatches)
-            {
-                // Ensure that all of the matches are currently in the waiting state
-                if (l_PendingMatch.State != MatchState.Waiting)
-                {
+                    // This is a hack to get around removing objects while iterating
+                    var s_PendingMatchesToMove = new List<MatchExt>();
+
+                    // Iterate over all of the pending matches
+                    foreach (var l_PendingMatch in m_PendingMatches)
+                    {
+                        // Ensure that all of the matches are currently in the waiting state
+                        if (l_PendingMatch.State != MatchState.Waiting)
+                        {
 #if DEBUG
-                    Debug.WriteLine($"Skipping pending match ({l_PendingMatch.MatchId}) in waiting state.");
+                            Debug.WriteLine($"Skipping pending match ({l_PendingMatch.MatchId}) in ({l_PendingMatch.State}) state.");
 #endif
-                    continue;
-                }
+                            continue;
+                        }
 
 
-                // Check to see if we need to launch/start any matches
-                if (DateTime.Now > l_PendingMatch.WaitTimeEnd)
-                {
-                    // TOOD: Launch this match
+                        // Check to see if we need to launch/start any matches
+                        if (DateTime.Now > l_PendingMatch.WaitTimeEnd)
+                        {
+                            // TOOD: Launch this match
 #if DEBUG
-                    Debug.WriteLine($"Launching Match ({l_PendingMatch.MatchId}) -> InGame.");
+                            Debug.WriteLine($"Launching Match ({l_PendingMatch.MatchId}) -> InGame.");
 #endif
-                    l_PendingMatch.State = MatchState.InGame;
+                            l_PendingMatch.State = MatchState.InGame;
 
-                    // Add to our running matches queue
-                    s_PendingMatchesToMove.Add(l_PendingMatch);
-                }
-            }
+                            // Add to our running matches queue
+                            s_PendingMatchesToMove.Add(l_PendingMatch);
+                        }
+                    }
 
-            // Remove all from pending matches
-            var s_RemovalCount = m_PendingMatches.RemoveAll(x => s_PendingMatchesToMove.Contains(x));
-            if (s_RemovalCount == 0)
-                Console.WriteLine("nothing removed");
+                    // Remove all from pending matches
+                    var s_RemovalCount = m_PendingMatches.RemoveAll(x => s_PendingMatchesToMove.Contains(x));
+                    if (s_RemovalCount == 0)
+                        Console.WriteLine("nothing removed");
 
-            foreach (var l_PendingMatch in s_PendingMatchesToMove)
-            {
-                if (!LaunchMatch(l_PendingMatch))
-                {
-                    Console.WriteLine($"Failed to launch match ({l_PendingMatch.MatchId}).");
-                    continue;
+                    foreach (var l_PendingMatch in s_PendingMatchesToMove)
+                    {
+                        if (!LaunchMatch(l_PendingMatch))
+                        {
+                            Console.WriteLine($"Failed to launch match ({l_PendingMatch.MatchId}).");
+                            continue;
+                        }
+                    }
                 }
             }
         }
@@ -317,13 +333,19 @@ namespace vusvc.Managers
 
         public MatchState GetMatchStateByLobbyId(Guid p_LobbyId)
         {
-            // Check to see if we are in the queued state
-            if (m_QueuedLobbies.Contains(p_LobbyId))
-                return MatchState.Queued;
+            lock (m_QueuedLobbies)
+            {
+                // Check to see if we are in the queued state
+                if (m_QueuedLobbies.Contains(p_LobbyId))
+                    return MatchState.Queued;
+            }
 
-            // Check to see if there is a pending match that we are apart of
-            if (m_PendingMatches.Any(p_PendingMatch => p_PendingMatch.LobbyIds.Contains(p_LobbyId)))
-                return MatchState.Waiting;
+            lock (m_PendingMatches)
+            {
+                // Check to see if there is a pending match that we are apart of
+                if (m_PendingMatches.Any(p_PendingMatch => p_PendingMatch.LobbyIds.Contains(p_LobbyId)))
+                    return MatchState.Waiting;
+            }
 
             // Check to see if we currently are in any match
             if (m_CurrentMatches.Any(p_CurrenetMatch => p_CurrenetMatch.LobbyIds.Contains(p_LobbyId)))

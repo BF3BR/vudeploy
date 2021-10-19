@@ -28,13 +28,6 @@ namespace vusvc.tests
             
         }
 
-        private string RandomString(int length)
-        {
-            const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-            return new string(Enumerable.Repeat(chars, length)
-              .Select(s => s[m_Random.Next(s.Length)]).ToArray());
-        }
-
         ~PlayerTests()
         {
             // Terminate all servers
@@ -49,7 +42,7 @@ namespace vusvc.tests
             Debug.WriteLine(System.Reflection.MethodBase.GetCurrentMethod().Name);
 
             var s_ZeusId = Guid.NewGuid();
-            var s_Name = $"Player_{RandomString(8)}";
+            var s_Name = $"Player_{Util.RandomString(8)}";
             Assert.True(m_PlayerManager.AddPlayer(s_ZeusId, s_Name, out Models.Player? s_Player));
 
             Assert.NotEqual(s_Player.Id, Guid.Empty);
@@ -64,7 +57,7 @@ namespace vusvc.tests
             Debug.WriteLine(System.Reflection.MethodBase.GetCurrentMethod().Name);
 
             var s_ZeusId = Guid.NewGuid();
-            var s_Name = $"Player_{RandomString(8)}";
+            var s_Name = $"Player_{Util.RandomString(8)}";
             Assert.True(m_PlayerManager.AddPlayer(s_ZeusId, s_Name, out Models.Player? s_Player));
 
             Assert.True(m_PlayerManager.AddPlayer(s_ZeusId, s_Name, out Models.Player? s_SecPlayer));
@@ -78,7 +71,7 @@ namespace vusvc.tests
             Debug.WriteLine(System.Reflection.MethodBase.GetCurrentMethod().Name);
 
             var s_ZeusId = Guid.NewGuid();
-            var s_Name = $"Player_{RandomString(8)}";
+            var s_Name = $"Player_{Util.RandomString(8)}";
             Assert.True(m_PlayerManager.AddPlayer(s_ZeusId, s_Name, out Models.Player? s_Player));
 
             Assert.Equal(m_PlayerManager.GetPlayerByZeusId(s_ZeusId)?.Id, s_Player.Id);
@@ -90,7 +83,7 @@ namespace vusvc.tests
             Debug.WriteLine(System.Reflection.MethodBase.GetCurrentMethod().Name);
 
             var s_ZeusId = Guid.NewGuid();
-            var s_Name = $"Player_{RandomString(8)}";
+            var s_Name = $"Player_{Util.RandomString(8)}";
             Assert.True(m_PlayerManager.AddPlayer(s_ZeusId, s_Name, out Models.Player? s_Player));
 
             Assert.Equal(s_Player.Id, m_PlayerManager.GetPlayerById(s_Player.Id)?.Id);
@@ -102,7 +95,7 @@ namespace vusvc.tests
             Debug.WriteLine(System.Reflection.MethodBase.GetCurrentMethod().Name);
 
             var s_ZeusId = Guid.NewGuid();
-            var s_Name = $"Player_{RandomString(8)}";
+            var s_Name = $"Player_{Util.RandomString(8)}";
             Assert.True(m_PlayerManager.AddPlayer(s_ZeusId, s_Name, out Models.Player? s_Player));
 
             Assert.Contains(s_Player, m_PlayerManager.GetPlayersByName(s_Name));
@@ -111,7 +104,34 @@ namespace vusvc.tests
         [Fact]
         public void PlayerManager_SaveLoad()
         {
+            var s_ZeusId = Guid.NewGuid();
+            var s_Name = $"Player_{Util.RandomString(8)}";
 
+            var s_ZeusId2 = Guid.NewGuid();
+            var s_Name2 = $"Player_{Util.RandomString(8)}";
+
+            Assert.True(m_PlayerManager.AddPlayer(s_ZeusId, s_Name, out Models.Player? s_Player));
+            var s_PlayerId = s_Player.Id;
+            Assert.True(m_PlayerManager.AddPlayer(s_ZeusId2, s_Name2, out Models.Player? s_Player2));
+            var s_PlayerId2 = s_Player2.Id;
+
+            Assert.True(m_PlayerManager.Save(PlayerManager.c_DefaultDatabasePath));
+            
+            // Create a new player manager
+            m_PlayerManager = new PlayerManager();
+
+            Assert.NotNull(m_PlayerManager.GetPlayerByZeusId(s_ZeusId));
+            Assert.NotNull(m_PlayerManager.GetPlayerByZeusId(s_ZeusId2));
+
+            Assert.True(m_PlayerManager.Load(PlayerManager.c_DefaultDatabasePath));
+
+            var s_Player3 = m_PlayerManager.GetPlayerByZeusId(s_ZeusId);
+            Assert.NotNull(s_Player3);
+            Assert.Equal(s_Player3.Id, s_PlayerId);
+
+            var s_Player4 = m_PlayerManager.GetPlayerByZeusId(s_ZeusId2);
+            Assert.NotNull(s_Player4);
+            Assert.Equal(s_Player4.Id, s_PlayerId2);
         }
 
         [Fact]
