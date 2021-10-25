@@ -184,11 +184,6 @@ namespace vusvc.Managers
             return m_Matches.Sum(p_Match => p_Match.Players.Count);
         }
 
-        public bool AddMatch()
-        {
-            throw new NotImplementedException();
-        }
-
         public Match? GetMatchById(Guid p_MatchId)
         {
             return m_Matches.FirstOrDefault(p_Match => p_Match.MatchId == p_MatchId);
@@ -304,6 +299,17 @@ namespace vusvc.Managers
         public MatchState GetMatchStateById(Guid p_MatchId)
         {
             return m_Matches.FirstOrDefault(p_Match => p_Match.MatchId == p_MatchId)?.State ?? MatchState.Invalid;
+        }
+
+        public bool SetMatchStateById(Guid p_MatchId, MatchState p_State)
+        {
+            var s_Match = m_Matches.FirstOrDefault(p_Match => p_Match.MatchId == p_MatchId);
+            if (s_Match is null)
+                return false;
+
+            s_Match.State = p_State;
+
+            return true;
         }
 
         public Match GetMatchByServerZeusId(Guid p_ServerId)

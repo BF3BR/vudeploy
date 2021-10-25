@@ -27,6 +27,8 @@ namespace vusvc.Managers
         MatchState GetMatchStateByLobbyId(Guid p_LobbyId);
         MatchState GetMatchStateById(Guid p_MatchId);
 
+        bool SetMatchStateById(Guid p_MatchId, MatchState p_State);
+
         int GetMatchPlayerCount(Guid p_MatchId);
 
         // TODO: Figure out how we will be handling different match conditions and states

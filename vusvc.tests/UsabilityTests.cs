@@ -117,10 +117,12 @@ namespace vusvc.tests
 
             Debug.WriteLine($"State: {s_CurrentMatchState}.");
 
-            m_ServerManager.TerminateAllServers();
+            //m_ServerManager.TerminateAllServers();
 
             s_CurrentMatchState = m_MatchManager.GetMatchStateByLobbyId(s_Lobby.LobbyId);
             Debug.WriteLine($"State: {s_CurrentMatchState}.");
+
+            
         }
     }
 }
