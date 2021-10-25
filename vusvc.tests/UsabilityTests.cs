@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using vusvc.Data;
 using vusvc.Managers;
 using Xunit;
@@ -69,6 +70,8 @@ namespace vusvc.tests
         [Fact]
         public void StartToPlayerJoinTest()
         {
+            const int c_WaitTimeInSeconds = 30;
+
             var s_PlayerZeusId = Guid.NewGuid();
             var s_PlayerName = $"Player_{Util.RandomString(8)}";
 
@@ -101,7 +104,7 @@ namespace vusvc.tests
             Assert.NotEqual(MatchState.Invalid, m_MatchManager.GetMatchStateByLobbyId(s_Lobby.LobbyId));
 
             var s_StartTime = DateTime.Now;
-            var s_EndTime = s_StartTime.AddSeconds(10);
+            var s_EndTime = s_StartTime.AddSeconds(c_WaitTimeInSeconds);
 
             var s_CurrentMatchState = MatchState.Invalid;
             while ((s_CurrentMatchState = m_MatchManager.GetMatchStateByLobbyId(s_Lobby.LobbyId)) != MatchState.Invalid)
@@ -122,7 +125,36 @@ namespace vusvc.tests
             s_CurrentMatchState = m_MatchManager.GetMatchStateByLobbyId(s_Lobby.LobbyId);
             Debug.WriteLine($"State: {s_CurrentMatchState}.");
 
-            
+            s_EndTime = DateTime.Now.AddSeconds(c_WaitTimeInSeconds);
+
+            while ((s_CurrentMatchState = m_MatchManager.GetMatchStateByLobbyId(s_Lobby.LobbyId)) != MatchState.InGame)
+            {
+                if (DateTime.Now > s_EndTime)
+                    break;
+            }
+
+
+            s_CurrentMatchState = m_MatchManager.GetMatchStateByLobbyId(s_Lobby.LobbyId);
+            Debug.WriteLine($"State: {s_CurrentMatchState}.");
+
+            var s_Match = m_MatchManager.GetMatchByLobbyId(s_Lobby.LobbyId);
+            Assert.NotNull(s_Match);
+
+            Assert.True(m_MatchManager.SetMatchCompletedById(s_Match.MatchId, 
+                new List<Guid>()
+                {
+                    s_Player.ZeusId,
+                },
+                new List<Guid>()
+                {
+                    s_Player.ZeusId,
+                    s_Player2.ZeusId
+                })
+            );
+
+            Assert.True(m_ServerManager.TerminateServer(s_Match.ServerId, true));
+
+
         }
     }
 }

@@ -26,6 +26,12 @@ namespace vusvc.Data
         /// Match has started
         /// </summary>
         InGame,
+
+        /// <summary>
+        /// Completed match state, this is what will get stored for stats
+        /// </summary>
+        Completed,
+
         COUNT
     }
 

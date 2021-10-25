@@ -188,9 +188,10 @@ namespace vusvc.Controllers
             if (s_Server.ZeusId != p_Request.ServerZeusId)
                 return BadRequest();
 
-            Console.WriteLine($"Match Completed!");
-            // TODO: MatchManager needs to handle the completion to update state and what not
+            if (!m_MatchManager.SetMatchCompletedById(s_Match.MatchId, p_Request.Winners, p_Request.Players))
+                return BadRequest();
 
+            
             return Ok();
         }
     }

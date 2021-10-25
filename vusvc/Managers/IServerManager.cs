@@ -17,6 +17,13 @@ namespace vusvc.Managers
         Server? GetServerById(Guid p_ServerId);
 
         /// <summary>
+        /// Gets a server by zeus id
+        /// </summary>
+        /// <param name="p_ZeusId">Zeus id</param>
+        /// <returns>Server, or null if not found or error</returns>
+        Server? GetServerByZeusId(Guid p_ZeusId);
+
+        /// <summary>
         /// BUG: This is probably going to change in the future
         /// 
         /// Adds a new server

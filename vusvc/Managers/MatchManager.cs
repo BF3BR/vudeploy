@@ -56,6 +56,10 @@ namespace vusvc.Managers
         // Matches that have been created and are pending a timer
         private List<MatchExt> m_Matches;
 
+#if DEBUG
+        public IList<MatchExt> Matches => m_Matches;
+#endif
+
         // Reference to the lobby manager
         private ILobbyManager m_LobbyManager;
         private IPlayerManager m_PlayerManager;
@@ -66,6 +70,7 @@ namespace vusvc.Managers
         private const int c_MaxPlayerCount = 100;
         private const int c_WaitTimeInMinutes = 1;
         private const int c_QueueTimeInMinutes = 5;
+        private const int c_MatchUpdateTimeInSeconds = 2;
 
         public MatchManager(ILobbyManager p_LobbyManager, IPlayerManager p_PlayerManager, IServerManager p_ServerManager)
         {
@@ -79,7 +84,7 @@ namespace vusvc.Managers
             m_Matches = new List<MatchExt>();
 
             // Create the new timers
-            m_MatchUpdateTimer = new Timer(1000 * 2);
+            m_MatchUpdateTimer = new Timer(1000 * c_MatchUpdateTimeInSeconds);
             m_MatchUpdateTimer.Elapsed += OnMatchUpdate;
             m_MatchUpdateTimer.Start();
         }
@@ -258,7 +263,7 @@ namespace vusvc.Managers
             if (s_Lobby is null)
                 return false;
 
-            var s_Match = GetMatchByLobbyId(p_LobbyId);
+            var s_Match = GetMatchByLobbyId(p_LobbyId) as MatchExt;
             if (s_Match is null)
                 return false;
 
@@ -291,7 +296,11 @@ namespace vusvc.Managers
             return m_Matches.FirstOrDefault(p_Match => p_Match.LobbyIds.Contains(p_LobbyId))?.State ?? MatchState.Invalid;
         }
 
-        private MatchExt? GetMatchByLobbyId(Guid p_LobbyId)
+#if DEBUG
+        public Match GetMatchByLobbyId(Guid p_LobbyId)
+#else
+        private Match GetMatchByLobbyId(Guid p_LobbyId)
+#endif
         {
             return m_Matches.FirstOrDefault(p_Match => p_Match.LobbyIds.Contains(p_LobbyId));
         }
@@ -303,10 +312,16 @@ namespace vusvc.Managers
 
         public bool SetMatchStateById(Guid p_MatchId, MatchState p_State)
         {
-            var s_Match = m_Matches.FirstOrDefault(p_Match => p_Match.MatchId == p_MatchId);
+            // Get match
+            var s_Match = GetMatchById(p_MatchId) as MatchExt; // m_Matches.FirstOrDefault(p_Match => p_Match.MatchId == p_MatchId);
             if (s_Match is null)
                 return false;
 
+            // If we are transitioning from waiting to ingame update the game start time
+            if (s_Match.State == MatchState.Waiting && p_State == MatchState.InGame)
+                s_Match.GameStartTime = DateTime.Now;
+
+            // Update the match state
             s_Match.State = p_State;
 
             return true;
@@ -328,6 +343,42 @@ namespace vusvc.Managers
                 return new Dictionary<Guid, Guid>();
 
             return (s_Match as MatchExt)?.PlayerLobbyIds;
+        }
+
+        public bool GetMatchInfoByZeusId(Guid p_ZeusId, out Guid? p_MatchId, out Dictionary<Guid, Guid> p_PlayerLobbyIds)
+        {
+            p_MatchId = null;
+            p_PlayerLobbyIds = new Dictionary<Guid, Guid>();
+
+            var s_Server = m_ServerManager.GetServerByZeusId(p_ZeusId);
+            if (s_Server is null)
+                return false;
+
+            var s_Match = m_Matches.FirstOrDefault(p_Match => p_Match.ServerId == s_Server.ServerId);
+            if (s_Match is null)
+                return false;
+
+            p_MatchId = s_Match.MatchId;
+            p_PlayerLobbyIds = s_Match.PlayerLobbyIds;
+
+            return true;
+        }
+
+        public bool SetMatchCompletedById(Guid p_MatchId, IEnumerable<Guid> p_Winners, IEnumerable<Guid> p_Players)
+        {
+            var s_Match = GetMatchById(p_MatchId) as MatchExt;
+            if (s_Match is null)
+                return false;
+
+            // Set the winners and players
+            s_Match.Winners = new List<Guid>(p_Winners);
+            s_Match.Players = new List<Guid>(p_Players);
+
+            // Update the match state and end time
+            s_Match.State = MatchState.Completed;
+            s_Match.GameEndTime = DateTime.Now;
+
+            return true;
         }
     }
 }

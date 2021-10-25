@@ -589,7 +589,7 @@ namespace vusvc.Managers
             p_Server = null;
 
 #if DEBUG
-            var s_ExecutablePath = @"C:\Users\godiwik\AppData\Local\VeniceUnleashed\client\vu.com";
+            var s_ExecutablePath = @"C:\Users\godiwik\AppData\Local\VeniceUnleashed\client\vu.exe";
             // UDP mharmony port
             var s_MonitoredHarmonyPort = (ushort)7948;
             var s_Unlisted = false;
@@ -724,6 +724,10 @@ namespace vusvc.Managers
                 s_Server.OnZeusIdUpdated(s_ZeusId);
             }
 
+#if DEBUG
+            Debug.WriteLine($"{s_StringData}{Environment.NewLine}");
+#endif
+
             // Validate we have any string data instead of adding blank lines or spaces
             if (string.IsNullOrWhiteSpace(s_StringData))
                 return;
@@ -748,7 +752,9 @@ namespace vusvc.Managers
             s_Server._Process.Kill(true);
 
             // Wait for the process to free all resources before continuing
-            s_Server.WaitTask.Wait();
+            if (s_Server.WaitTask.Status != TaskStatus.WaitingForActivation ||
+                s_Server.WaitTask.Status != TaskStatus.RanToCompletion)
+                s_Server.WaitTask.Wait();
 
             if (p_DeleteInstanceDirectory)
             {
@@ -853,6 +859,11 @@ namespace vusvc.Managers
                     target.CreateSubdirectory(diSourceSubDir.Name);
                 CopyAll(diSourceSubDir, nextTargetSubDir);
             }
+        }
+
+        public Server? GetServerByZeusId(Guid p_ZeusId)
+        {
+            return m_Servers.FirstOrDefault(p_Server => p_Server._Server.ZeusId == p_ZeusId)?._Server;
         }
     }
 }
