@@ -392,7 +392,7 @@ namespace vusvc.Managers
 
                     var s_PathLen = s_EndIndex - s_StartIndex;
 
-                    var s_LaunchPath = s_LaunchArg.Substring(s_StartIndex, s_PathLen).Replace(".exe", ".com");
+                    var s_LaunchPath = s_LaunchArg.Substring(s_StartIndex, s_PathLen);//.Replace(".exe", ".com");
 
 
                     return s_LaunchPath;
@@ -533,6 +533,7 @@ namespace vusvc.Managers
                     RedirectStandardError = true,
                     RedirectStandardOutput = true,
                     Arguments = s_LaunchArguments,
+                    
                     //WorkingDirectory = Path.GetDirectoryName(s_VuPath) ?? "./"
                 },
                 EnableRaisingEvents = true
@@ -609,10 +610,12 @@ namespace vusvc.Managers
             };
 
             // Set up the arguments
-            
+
 
             // Register our events
-            s_Process.OutputDataReceived += OnProcessOuputReceived;
+            s_Process.OutputDataReceived -= OnProcessOuputReceived;
+            s_Process.ErrorDataReceived -= OnProcessErrorReceived;
+            s_Process.OutputDataReceived += OnProcessOuputReceived; 
             s_Process.ErrorDataReceived += OnProcessErrorReceived;
             s_Process.Exited += OnProcessExited;
 
@@ -659,6 +662,9 @@ namespace vusvc.Managers
         private void OnProcessExited(object sender, EventArgs e)
         {
             var s_Process = sender as Process;
+
+            s_Process.CancelOutputRead();
+            s_Process.CancelErrorRead();
 
             // Find the server via process
             var s_Server = GetServerByProcess(s_Process);
@@ -751,10 +757,10 @@ namespace vusvc.Managers
             // Kill the process
             s_Server._Process.Kill(true);
 
-            // Wait for the process to free all resources before continuing
-            if (s_Server.WaitTask.Status != TaskStatus.WaitingForActivation ||
-                s_Server.WaitTask.Status != TaskStatus.RanToCompletion)
-                s_Server.WaitTask.Wait();
+            //// Wait for the process to free all resources before continuing
+            //if (s_Server.WaitTask.Status != TaskStatus.WaitingForActivation ||
+            //    s_Server.WaitTask.Status != TaskStatus.RanToCompletion)
+            //    s_Server.WaitTask.GetAwaiter().GetResult();
 
             if (p_DeleteInstanceDirectory)
             {

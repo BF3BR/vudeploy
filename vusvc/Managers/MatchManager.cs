@@ -118,6 +118,8 @@ namespace vusvc.Managers
 
         private bool LaunchMatch(MatchExt p_Match)
         {
+            Debug.WriteLine($"Launching {p_Match.MatchId}.");
+
             // Create a new server
             if (!m_ServerManager.AddServer(out Server? s_Server, true, "0.0.0.0", "battleroyale", Server.ServerInstanceFrequency.Frequency30, Server.ServerInstanceType.Game))
             {
